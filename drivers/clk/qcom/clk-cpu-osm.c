@@ -282,7 +282,7 @@ static struct clk_init_data osm_clks_init[] = {
 		.name = "l3_clk",
 		.parent_names = (const char *[]){ "bi_tcxo_ao" },
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_CHILD_NO_RATE_PROP,
 		.ops = &clk_ops_l3_osm,
 	},
 	[1] = {
