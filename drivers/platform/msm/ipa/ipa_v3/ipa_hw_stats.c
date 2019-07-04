@@ -1639,7 +1639,7 @@ static ssize_t ipa_debugfs_reset_quota_stats(struct file *file,
 	int ret;
 
 	mutex_lock(&ipa3_ctx->lock);
-	if (sizeof(dbg_buff) < count + 1) {
+	if (sizeof(dbg_buff) < count) {
 		ret = -EFAULT;
 		goto bail;
 	}
@@ -1738,7 +1738,7 @@ static ssize_t ipa_debugfs_reset_tethering_stats(struct file *file,
 	int ret;
 
 	mutex_lock(&ipa3_ctx->lock);
-	if (sizeof(dbg_buff) < count + 1) {
+	if (sizeof(dbg_buff) < count) {
 		ret = -EFAULT;
 		goto bail;
 	}
@@ -1872,7 +1872,7 @@ static ssize_t ipa_debugfs_control_flt_rt_stats(struct file *file,
 	}
 
 	mutex_lock(&ipa3_ctx->lock);
-	if (sizeof(dbg_buff) < count + 1) {
+	if (sizeof(dbg_buff) < count) {
 		ret = -EFAULT;
 		goto bail;
 	}
@@ -1973,7 +1973,7 @@ static ssize_t ipa_debugfs_reset_drop_stats(struct file *file,
 	int ret;
 
 	mutex_lock(&ipa3_ctx->lock);
-	if (sizeof(dbg_buff) < count + 1) {
+	if (sizeof(dbg_buff) < count) {
 		ret = -EFAULT;
 		goto bail;
 	}
