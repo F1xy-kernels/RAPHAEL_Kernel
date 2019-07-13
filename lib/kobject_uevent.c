@@ -446,7 +446,7 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 		break;
 
 	case KOBJ_UNBIND:
-		zap_modalias_env(env);
+		zap_modalias_env(&env);
 		break;
 
 	default:
