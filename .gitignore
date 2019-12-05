@@ -128,4 +128,5 @@ kernel/configs/android-*.cfg
 
 # stand-alone
 build.sh
+build/
 out/
