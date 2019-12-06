@@ -3853,7 +3853,6 @@ int cam_ife_csid_hw_probe_init(struct cam_hw_intf  *csid_hw_intf,
 	struct cam_ife_csid_cid_data         *cid_data;
 	struct cam_hw_info                   *csid_hw_info;
 	struct cam_ife_csid_hw               *ife_csid_hw = NULL;
-	char worker_name[128];
 
 	if (csid_idx >= CAM_IFE_CSID_HW_RES_MAX) {
 		CAM_ERR(CAM_ISP, "Invalid csid index:%d", csid_idx);
