@@ -315,4 +315,12 @@ config FILE_TABLE_DEBUG
 	help
 	  This option enables debug of the open files using a global filetable
 
+config BLOCK_UNWANTED_APPS
+	bool "Enable blocking of unwanted apps"
+	depends on ANDROID
+	help
+	   This option allows you to block a set of apps/binaries (by name)
+	   from running on devices with your kernel installed. May be useful
+	   if your users are uneducated.
+
 endmenu
