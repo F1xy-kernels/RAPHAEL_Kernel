@@ -348,7 +348,7 @@ void mhi_dev_read_from_host_edma(struct mhi_dev *mhi, struct mhi_addr *transfer)
 	}
 
 	mhi_log(MHI_MSG_VERBOSE,
-		"device 0x%llx <<-- host 0x%llx, size %d\n",
+		"device 0x%x <<-- host 0x%llx, size %d\n",
 		transfer->phy_addr, host_addr_pa,
 		(int) transfer->size);
 
@@ -1187,7 +1187,7 @@ static int mhi_dev_send_cmd_comp_event(struct mhi_dev *mhi,
 	event.evt_cmd_comp.ptr = mhi->cmd_ctx_cache->rbase
 			+ (mhi->ring[MHI_RING_CMD_ID].rd_offset *
 			(sizeof(union mhi_dev_ring_element_type)));
-	mhi_log(MHI_MSG_VERBOSE, "evt cmd comp ptr :%lx\n",
+	mhi_log(MHI_MSG_VERBOSE, "evt cmd comp ptr :%d\n",
 			(size_t) event.evt_cmd_comp.ptr);
 	event.evt_cmd_comp.type = MHI_DEV_RING_EL_CMD_COMPLETION_EVT;
 	event.evt_cmd_comp.code = code;
@@ -1499,7 +1499,7 @@ static void mhi_dev_process_tre_ring(struct mhi_dev *mhi,
 
 	if (ring->id < mhi->ch_ring_start) {
 		mhi_log(MHI_MSG_VERBOSE,
-			"invalid channel ring id (%d), should be < %lu\n",
+			"invalid channel ring id (%d), should be < %d\n",
 			ring->id, mhi->ch_ring_start);
 		return;
 	}
@@ -1685,6 +1685,9 @@ static int mhi_dev_abort(struct mhi_dev *mhi)
 
 	flush_workqueue(mhi->ring_init_wq);
 	flush_workqueue(mhi->pending_ring_wq);
+
+	/* Initiate MHI IPA reset */
+	ipa_mhi_destroy();
 
 	/* Clean up initialized channels */
 	rc = mhi_deinit(mhi);
@@ -2279,7 +2282,6 @@ free_ereqs:
 	ch->ereqs = NULL;
 free_client:
 	kfree(*handle_client);
-	*handle_client = NULL;
 exit:
 	mutex_unlock(&ch->ch_lock);
 	return rc;
@@ -2290,11 +2292,6 @@ int mhi_dev_channel_isempty(struct mhi_dev_client *handle)
 {
 	struct mhi_dev_channel *ch;
 	int rc;
-
-	if (!handle) {
-		mhi_log(MHI_MSG_ERROR, "Invalid channel access\n");
-		return -EINVAL;
-	}
 
 	ch = handle->channel;
 	if (!ch)
@@ -2310,11 +2307,6 @@ int mhi_dev_close_channel(struct mhi_dev_client *handle)
 {
 	struct mhi_dev_channel *ch;
 	int rc = 0;
-
-	if (!handle) {
-		mhi_log(MHI_MSG_ERROR, "Invalid channel access\n");
-		return -EINVAL;
-	}
 
 	ch = handle->channel;
 
@@ -2419,7 +2411,7 @@ int mhi_dev_read_channel(struct mhi_req *mreq)
 		el = &ring->ring_cache[ring->rd_offset];
 		mhi_log(MHI_MSG_VERBOSE, "evtptr : 0x%llx\n",
 						el->tre.data_buf_ptr);
-		mhi_log(MHI_MSG_VERBOSE, "evntlen : 0x%x, offset:%lu\n",
+		mhi_log(MHI_MSG_VERBOSE, "evntlen : 0x%x, offset:%d\n",
 						el->tre.len, ring->rd_offset);
 
 		if (ch->tre_loc) {
@@ -2464,7 +2456,7 @@ int mhi_dev_read_channel(struct mhi_req *mreq)
 		mreq->el = el;
 		mreq->transfer_len = bytes_to_read;
 		mreq->rd_offset = ring->rd_offset;
-		mhi_log(MHI_MSG_VERBOSE, "reading %lu bytes from chan %d\n",
+		mhi_log(MHI_MSG_VERBOSE, "reading %d bytes from chan %d\n",
 				bytes_to_read, mreq->chan);
 		rc = mhi_ctx->host_to_device((void *) write_to_loc,
 				read_from_loc, bytes_to_read, mhi_ctx, mreq);
@@ -2614,7 +2606,7 @@ int mhi_dev_write_channel(struct mhi_req *wreq)
 		el = &ring->ring_cache[ring->rd_offset];
 		tre_len = el->tre.len;
 		if (wreq->len > tre_len) {
-			pr_err("%s(): rlen = %lu, tlen = %d: client buf > tre len\n",
+			pr_err("%s(): rlen = %d, tlen = %d: client buf > tre len\n",
 					__func__, wreq->len, tre_len);
 			bytes_written = -ENOMEM;
 			goto exit;

@@ -34,6 +34,7 @@ struct ion_heap_desc {
 	const char *name;
 };
 
+#ifdef CONFIG_OF
 static struct ion_heap_desc ion_heap_meta[] = {
 	{
 		.id	= ION_SYSTEM_HEAP_ID,
@@ -80,7 +81,9 @@ static struct ion_heap_desc ion_heap_meta[] = {
 		.name	= ION_SECURE_CARVEOUT_HEAP_NAME,
 	}
 };
+#endif
 
+#ifdef CONFIG_OF
 #define MAKE_HEAP_TYPE_MAPPING(h) { .name = #h, \
 			.heap_type = ION_HEAP_TYPE_##h, }
 
@@ -258,6 +261,16 @@ free_heaps:
 	free_pdata(pdata);
 	return ERR_PTR(ret);
 }
+#else
+static struct ion_platform_data *msm_ion_parse_dt(struct platform_device *pdev)
+{
+	return NULL;
+}
+
+static void free_pdata(const struct ion_platform_data *pdata)
+{
+}
+#endif
 
 struct ion_heap *get_ion_heap(int heap_id)
 {
@@ -278,13 +291,19 @@ static int msm_ion_probe(struct platform_device *pdev)
 {
 	static struct ion_device *new_dev;
 	struct ion_platform_data *pdata;
+	unsigned int pdata_needs_to_be_freed;
 	int err = -1;
 	int i;
 
-	pdata = msm_ion_parse_dt(pdev);
-	if (IS_ERR(pdata))
-		return PTR_ERR(pdata);
-
+	if (pdev->dev.of_node) {
+		pdata = msm_ion_parse_dt(pdev);
+		if (IS_ERR(pdata))
+			return PTR_ERR(pdata);
+		pdata_needs_to_be_freed = 1;
+	} else {
+		pdata = pdev->dev.platform_data;
+		pdata_needs_to_be_freed = 0;
+	}
 
 	num_heaps = pdata->nr;
 
@@ -327,7 +346,8 @@ static int msm_ion_probe(struct platform_device *pdev)
 
 		ion_device_add_heap(new_dev, heaps[i]);
 	}
-	free_pdata(pdata);
+	if (pdata_needs_to_be_freed)
+		free_pdata(pdata);
 
 	platform_set_drvdata(pdev, new_dev);
 	/*
@@ -340,7 +360,8 @@ static int msm_ion_probe(struct platform_device *pdev)
 
 out:
 	kfree(heaps);
-	free_pdata(pdata);
+	if (pdata_needs_to_be_freed)
+		free_pdata(pdata);
 	return err;
 }
 

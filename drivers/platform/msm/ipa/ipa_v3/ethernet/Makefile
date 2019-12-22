@@ -4,7 +4,6 @@ obj-$(CONFIG_IPA_ETH) += ipa-eth.o
 ipa-eth-y := \
 	ipa_eth_bus.o \
 	ipa_eth.o \
-	ipa_eth_debugfs.o \
 	ipa_eth_ep.o \
 	ipa_eth_gsi.o \
 	ipa_eth_net.o \
