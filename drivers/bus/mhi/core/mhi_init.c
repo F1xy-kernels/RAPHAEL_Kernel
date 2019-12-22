@@ -23,6 +23,14 @@
 #include <linux/mhi.h>
 #include "mhi_internal.h"
 
+const char * const mhi_log_level_str[MHI_MSG_LVL_MAX] = {
+	[MHI_MSG_LVL_VERBOSE] = "Verbose",
+	[MHI_MSG_LVL_INFO] = "Info",
+	[MHI_MSG_LVL_ERROR] = "Error",
+	[MHI_MSG_LVL_CRITICAL] = "Critical",
+	[MHI_MSG_LVL_MASK_ALL] = "Mask all",
+};
+
 const char * const mhi_ee_str[MHI_EE_MAX] = {
 	[MHI_EE_PBL] = "PBL",
 	[MHI_EE_SBL] = "SBL",
@@ -71,6 +79,19 @@ static const char * const mhi_pm_state_str[] = {
 
 struct mhi_bus mhi_bus;
 
+struct mhi_controller *find_mhi_controller_by_name(const char *name)
+{
+	struct mhi_controller *mhi_cntrl, *tmp_cntrl;
+
+	list_for_each_entry_safe(mhi_cntrl, tmp_cntrl, &mhi_bus.controller_list,
+				 node) {
+		if (!strcmp(name, mhi_cntrl->name))
+			return mhi_cntrl;
+	}
+
+	return NULL;
+}
+
 const char *to_mhi_pm_state_str(enum MHI_PM_STATE state)
 {
 	int index = find_last_bit((unsigned long *)&state, 32);
@@ -80,6 +101,38 @@ const char *to_mhi_pm_state_str(enum MHI_PM_STATE state)
 
 	return mhi_pm_state_str[index];
 }
+
+static ssize_t log_level_show(struct device *dev,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	struct mhi_device *mhi_dev = to_mhi_device(dev);
+	struct mhi_controller *mhi_cntrl = mhi_dev->mhi_cntrl;
+
+	return snprintf(buf, PAGE_SIZE, "%s\n",
+			TO_MHI_LOG_LEVEL_STR(mhi_cntrl->log_lvl));
+}
+
+static ssize_t log_level_store(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf,
+			       size_t count)
+{
+	struct mhi_device *mhi_dev = to_mhi_device(dev);
+	struct mhi_controller *mhi_cntrl = mhi_dev->mhi_cntrl;
+	enum MHI_DEBUG_LEVEL log_level;
+
+	if (kstrtou32(buf, 0, &log_level) < 0)
+		return -EINVAL;
+
+	mhi_cntrl->log_lvl = log_level;
+
+	MHI_LOG("IPC log level changed to: %s\n",
+		TO_MHI_LOG_LEVEL_STR(log_level));
+
+	return count;
+}
+static DEVICE_ATTR_RW(log_level);
 
 static ssize_t bus_vote_show(struct device *dev,
 			     struct device_attribute *attr,
@@ -139,27 +192,28 @@ static ssize_t device_vote_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(device_vote);
 
-static struct attribute *mhi_vote_attrs[] = {
+static struct attribute *mhi_sysfs_attrs[] = {
+	&dev_attr_log_level.attr,
 	&dev_attr_bus_vote.attr,
 	&dev_attr_device_vote.attr,
 	NULL,
 };
 
-static const struct attribute_group mhi_vote_group = {
-	.attrs = mhi_vote_attrs,
+static const struct attribute_group mhi_sysfs_group = {
+	.attrs = mhi_sysfs_attrs,
 };
 
-int mhi_create_vote_sysfs(struct mhi_controller *mhi_cntrl)
+int mhi_create_sysfs(struct mhi_controller *mhi_cntrl)
 {
 	return sysfs_create_group(&mhi_cntrl->mhi_dev->dev.kobj,
-				  &mhi_vote_group);
+				  &mhi_sysfs_group);
 }
 
-void mhi_destroy_vote_sysfs(struct mhi_controller *mhi_cntrl)
+void mhi_destroy_sysfs(struct mhi_controller *mhi_cntrl)
 {
 	struct mhi_device *mhi_dev = mhi_cntrl->mhi_dev;
 
-	sysfs_remove_group(&mhi_dev->dev.kobj, &mhi_vote_group);
+	sysfs_remove_group(&mhi_dev->dev.kobj, &mhi_sysfs_group);
 
 	/* relinquish any pending votes for device */
 	while (atomic_read(&mhi_dev->dev_vote))
@@ -618,6 +672,42 @@ exit_timesync:
 	read_unlock_bh(&mhi_cntrl->pm_lock);
 
 	return ret;
+}
+
+int mhi_init_sfr(struct mhi_controller *mhi_cntrl)
+{
+	struct mhi_sfr_info *sfr_info = mhi_cntrl->mhi_sfr;
+	int ret = -EIO;
+
+	if (!sfr_info)
+		return ret;
+
+	/* do a clean-up if we reach here post SSR */
+	memset(sfr_info->str, 0, sfr_info->len);
+
+	sfr_info->buf_addr = mhi_alloc_coherent(mhi_cntrl, sfr_info->len,
+					&sfr_info->dma_addr, GFP_KERNEL);
+	if (!sfr_info->buf_addr) {
+		MHI_ERR("Failed to allocate memory for sfr\n");
+		return -ENOMEM;
+	}
+
+	init_completion(&sfr_info->completion);
+
+	ret = mhi_send_cmd(mhi_cntrl, NULL, MHI_CMD_SFR_CFG);
+	if (ret) {
+		MHI_ERR("Failed to send sfr cfg cmd\n");
+		return ret;
+	}
+
+	ret = wait_for_completion_timeout(&sfr_info->completion,
+			msecs_to_jiffies(mhi_cntrl->timeout_ms));
+	if (!ret || sfr_info->ccs != MHI_EV_CC_SUCCESS) {
+		MHI_ERR("Failed to get sfr cfg cmd completion\n");
+		return -EIO;
+	}
+
+	return 0;
 }
 
 static int mhi_init_bw_scale(struct mhi_controller *mhi_cntrl)
@@ -1259,6 +1349,8 @@ static int of_parse_dt(struct mhi_controller *mhi_cntrl,
 	if (!ret)
 		mhi_cntrl->bhie = mhi_cntrl->regs + bhie_offset;
 
+	of_property_read_string(of_node, "mhi,name", &mhi_cntrl->name);
+
 	return 0;
 
 error_ev_cfg:
@@ -1275,6 +1367,7 @@ int of_register_mhi_controller(struct mhi_controller *mhi_cntrl)
 	struct mhi_chan *mhi_chan;
 	struct mhi_cmd *mhi_cmd;
 	struct mhi_device *mhi_dev;
+	struct mhi_sfr_info *sfr_info;
 	u32 soc_info;
 
 	if (!mhi_cntrl->of_node)
@@ -1388,6 +1481,23 @@ int of_register_mhi_controller(struct mhi_controller *mhi_cntrl)
 
 	mhi_cntrl->mhi_dev = mhi_dev;
 
+	if (mhi_cntrl->sfr_len) {
+		sfr_info = kzalloc(sizeof(*sfr_info), GFP_KERNEL);
+		if (!sfr_info) {
+			ret = -ENOMEM;
+			goto error_add_dev;
+		}
+
+		sfr_info->str = kzalloc(mhi_cntrl->sfr_len, GFP_KERNEL);
+		if (!sfr_info->str) {
+			ret = -ENOMEM;
+			goto error_alloc_sfr;
+		}
+
+		sfr_info->len = mhi_cntrl->sfr_len;
+		mhi_cntrl->mhi_sfr = sfr_info;
+	}
+
 	mhi_cntrl->parent = debugfs_lookup(mhi_bus_type.name, NULL);
 	mhi_cntrl->klog_lvl = MHI_MSG_LVL_ERROR;
 
@@ -1397,6 +1507,9 @@ int of_register_mhi_controller(struct mhi_controller *mhi_cntrl)
 	mutex_unlock(&mhi_bus.lock);
 
 	return 0;
+
+error_alloc_sfr:
+	kfree(sfr_info);
 
 error_add_dev:
 	mhi_dealloc_device(mhi_cntrl, mhi_dev);
@@ -1415,11 +1528,17 @@ EXPORT_SYMBOL(of_register_mhi_controller);
 void mhi_unregister_mhi_controller(struct mhi_controller *mhi_cntrl)
 {
 	struct mhi_device *mhi_dev = mhi_cntrl->mhi_dev;
+	struct mhi_sfr_info *sfr_info = mhi_cntrl->mhi_sfr;
 
 	kfree(mhi_cntrl->mhi_cmd);
 	kfree(mhi_cntrl->mhi_event);
 	kfree(mhi_cntrl->mhi_chan);
 	kfree(mhi_cntrl->mhi_tsync);
+
+	if (sfr_info) {
+		kfree(sfr_info->str);
+		kfree(sfr_info);
+	}
 
 	device_del(&mhi_dev->dev);
 	put_device(&mhi_dev->dev);

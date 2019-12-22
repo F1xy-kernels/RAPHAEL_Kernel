@@ -328,11 +328,8 @@ static  int mhi_arch_pcie_scale_bw(struct mhi_controller *mhi_cntrl,
 {
 	int ret;
 
-	mhi_cntrl->lpm_disable(mhi_cntrl, mhi_cntrl->priv_data);
 	ret = msm_pcie_set_link_bandwidth(pci_dev, link_info->target_link_speed,
 					  link_info->target_link_width);
-	mhi_cntrl->lpm_enable(mhi_cntrl, mhi_cntrl->priv_data);
-
 	if (ret)
 		return ret;
 
@@ -438,10 +435,11 @@ int mhi_arch_pcie_init(struct mhi_controller *mhi_cntrl)
 				return -EINVAL;
 		}
 
-		/* register with pcie rc for WAKE# events */
+		/* register with pcie rc for WAKE# or link state events */
 		reg_event = &arch_info->pcie_reg_event;
-		reg_event->events =
-			MSM_PCIE_EVENT_WAKEUP | MSM_PCIE_EVENT_L1SS_TIMEOUT;
+		reg_event->events = mhi_dev->allow_m1 ?
+			(MSM_PCIE_EVENT_WAKEUP) :
+			(MSM_PCIE_EVENT_WAKEUP | MSM_PCIE_EVENT_L1SS_TIMEOUT);
 
 		reg_event->user = mhi_dev->pci_dev;
 		reg_event->callback = mhi_arch_pci_link_state_cb;
@@ -658,7 +656,8 @@ int mhi_arch_link_suspend(struct mhi_controller *mhi_cntrl)
 	MHI_LOG("Entered\n");
 
 	/* disable inactivity timer */
-	msm_pcie_l1ss_timeout_disable(pci_dev);
+	if (!mhi_dev->allow_m1)
+		msm_pcie_l1ss_timeout_disable(pci_dev);
 
 	switch (mhi_dev->suspend_mode) {
 	case MHI_DEFAULT_SUSPEND:
@@ -686,7 +685,7 @@ int mhi_arch_link_suspend(struct mhi_controller *mhi_cntrl)
 	}
 
 exit_suspend:
-	if (ret)
+	if (ret && !mhi_dev->allow_m1)
 		msm_pcie_l1ss_timeout_enable(pci_dev);
 
 	MHI_LOG("Exited with ret:%d\n", ret);
@@ -762,7 +761,8 @@ int mhi_arch_link_resume(struct mhi_controller *mhi_cntrl)
 		return ret;
 	}
 
-	msm_pcie_l1ss_timeout_enable(pci_dev);
+	if (!mhi_dev->allow_m1)
+		msm_pcie_l1ss_timeout_enable(pci_dev);
 
 	MHI_LOG("Exited\n");
 

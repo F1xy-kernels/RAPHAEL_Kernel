@@ -241,6 +241,7 @@ static void *usbpd_ipc_log;
 #define VDM_BUSY_TIME		50
 #define VCONN_ON_TIME		100
 #define SINK_TX_TIME		16
+#define DR_SWAP_RESPONSE_TIME	20
 
 /* tPSHardReset + tSafe0V */
 #define SNK_HARD_RESET_VBUS_OFF_TIME	(35 + 650)
@@ -400,6 +401,8 @@ struct usbpd {
 	enum usbpd_state	current_state;
 	bool			hard_reset_recvd;
 	ktime_t			hard_reset_recvd_time;
+	ktime_t			dr_swap_recvd_time;
+
 	struct list_head	rx_q;
 	spinlock_t		rx_lock;
 	struct rx_msg		*rx_ext_msg;
@@ -1193,6 +1196,9 @@ static void phy_msg_received(struct usbpd *pd, enum pd_sop_type sop,
 		kfree(rx_msg);
 		return;
 	}
+
+	if (IS_CTRL(rx_msg, MSG_DR_SWAP))
+		pd->dr_swap_recvd_time = ktime_get();
 
 	spin_lock_irqsave(&pd->rx_lock, flags);
 	list_add_tail(&rx_msg->entry, &pd->rx_q);
@@ -2514,6 +2520,7 @@ static void usbpd_sm(struct work_struct *w)
 	int ret, ms;
 	struct rx_msg *rx_msg = NULL;
 	unsigned long flags;
+	s64 dr_swap_delta;
 
 	usbpd_dbg(&pd->dev, "handle state %s\n",
 			usbpd_state_strings[pd->current_state]);
@@ -2796,6 +2803,14 @@ static void usbpd_sm(struct work_struct *w)
 				break;
 			}
 
+			dr_swap_delta = ktime_ms_delta(ktime_get(),
+						pd->dr_swap_recvd_time);
+			if (dr_swap_delta > DR_SWAP_RESPONSE_TIME) {
+				usbpd_err(&pd->dev, "DR swap timedout(%lld), do not send ACCEPT\n",
+								dr_swap_delta);
+				break;
+			}
+
 			ret = pd_send_msg(pd, MSG_ACCEPT, NULL, 0, SOP_MSG);
 			if (ret) {
 				usbpd_set_state(pd, PE_SEND_SOFT_RESET);
@@ -3075,6 +3090,14 @@ static void usbpd_sm(struct work_struct *w)
 		} else if (IS_CTRL(rx_msg, MSG_DR_SWAP)) {
 			if (pd->vdm_state == MODE_ENTERED) {
 				usbpd_set_state(pd, PE_SNK_HARD_RESET);
+				break;
+			}
+
+			dr_swap_delta = ktime_ms_delta(ktime_get(),
+						pd->dr_swap_recvd_time);
+			if (dr_swap_delta > DR_SWAP_RESPONSE_TIME) {
+				usbpd_err(&pd->dev, "DR swap timedout(%lld), do not send ACCEPT\n",
+								dr_swap_delta);
 				break;
 			}
 
@@ -4928,34 +4951,6 @@ struct usbpd *usbpd_create(struct device *parent)
 			EXTCON_PROP_USB_TYPEC_POLARITY);
 	extcon_set_property_capability(pd->extcon, EXTCON_USB_HOST,
 			EXTCON_PROP_USB_SS);
-
-	pd->vbus = devm_regulator_get(parent, "vbus");
-	if (IS_ERR(pd->vbus)) {
-		ret = PTR_ERR(pd->vbus);
-		goto put_psy;
-	}
-
-	pd->vconn = devm_regulator_get(parent, "vconn");
-	if (IS_ERR(pd->vconn)) {
-		ret = PTR_ERR(pd->vconn);
-		goto put_psy;
-	}
-
-	ret = of_property_read_u32(parent->of_node, "mi,limit_pd_vbus",
-			&pd->limit_pd_vbus);
-	if (ret) {
-		usbpd_err(&pd->dev, "failed to read pd vbus limit\n");
-		pd->limit_pd_vbus = false;
-	}
-
-	if (pd->limit_pd_vbus) {
-		ret = of_property_read_u32(parent->of_node, "mi,pd_vbus_max_limit",
-				&pd->pd_vbus_max_limit);
-		if (ret) {
-			usbpd_err(&pd->dev, "failed to read pd vbus max limit\n");
-			pd->pd_vbus_max_limit = PD_VBUS_MAX_VOLTAGE_LIMIT;
-		}
-	}
 
 	pd->num_sink_caps = device_property_read_u32_array(parent,
 			"qcom,default-sink-caps", NULL, 0);
