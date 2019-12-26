@@ -824,10 +824,6 @@ void __noreturn do_exit(long code)
 	exit_signals(tsk);  /* sets PF_EXITING */
 	sched_exit(tsk);
 
-	if (tsk->flags & PF_SU) {
-		su_exit();
-	}
-
 	if (unlikely(in_atomic())) {
 		pr_info("note: %s[%d] exited with preempt_count %d\n",
 			current->comm, task_pid_nr(current),
