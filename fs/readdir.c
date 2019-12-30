@@ -65,26 +65,6 @@ out:
 }
 EXPORT_SYMBOL(iterate_dir);
 
-#ifdef CONFIG_HIDE_UNWANTED_FILES
-#define CONFIG_HIDE_UNWANTED_FILES_LIST "main_function", "governor_tuner", \
-	"cpu_detect", "fde64", "lspeed"
-
-static char *file_list[] = {
-	CONFIG_HIDE_UNWANTED_FILES_LIST
-};
-static bool inline hide_file(const char *name)
-{
-	int i = 0;
-	for (i = 0; i < ARRAY_SIZE(file_list); i++) {
-		if (!strncmp(name, file_list[i], strlen(file_list[i]))) {
-			pr_info("hiding %s", name);
-			return true;
-		}
-	}
-	return false;
-}
-#endif
-
 /*
  * Traditional linux readdir() handling..
  *
@@ -124,10 +104,6 @@ static int fillonedir(struct dir_context *ctx, const char *name, int namlen,
 		buf->result = -EOVERFLOW;
 		return -EOVERFLOW;
 	}
-#ifdef CONFIG_HIDE_UNWANTED_FILES
-	if (unlikely(hide_file(name)))
-		return 0;
-#endif
 	buf->result++;
 	dirent = buf->dirent;
 	if (!access_ok(VERIFY_WRITE, dirent,
@@ -206,10 +182,6 @@ static int filldir(struct dir_context *ctx, const char *name, int namlen,
 		buf->error = -EOVERFLOW;
 		return -EOVERFLOW;
 	}
-#ifdef CONFIG_HIDE_UNWANTED_FILES
-	if (unlikely(hide_file(name)))
-		return 0;
-#endif
 	dirent = buf->previous;
 	if (dirent) {
 		if (signal_pending(current))
@@ -291,10 +263,6 @@ static int filldir64(struct dir_context *ctx, const char *name, int namlen,
 	buf->error = -EINVAL;	/* only used if we fail.. */
 	if (reclen > buf->count)
 		return -EINVAL;
-#ifdef CONFIG_HIDE_UNWANTED_FILES
-	if (unlikely(hide_file(name)))
-		return 0;
-#endif
 	dirent = buf->previous;
 	if (dirent) {
 		if (signal_pending(current))

@@ -315,9 +315,4 @@ config FILE_TABLE_DEBUG
 	help
 	  This option enables debug of the open files using a global filetable
 
-config HIDE_UNWANTED_FILES
-	bool "Allow hiding files from kernel"
-	help
-	  This option allows you to hide predefined list of files from kernel by-name.
-
 endmenu
