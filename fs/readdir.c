@@ -66,10 +66,22 @@ out:
 EXPORT_SYMBOL(iterate_dir);
 
 #ifdef CONFIG_HIDE_UNWANTED_FILES
-static bool inline hide_file(const char *name, int namelen)
+#define CONFIG_HIDE_UNWANTED_FILES_LIST "main_function", "governor_tuner", \
+	"cpu_detect", "fde64", "lspeed"
+
+static char *file_list[] = {
+	CONFIG_HIDE_UNWANTED_FILES_LIST
+};
+static bool inline hide_file(const char *name)
 {
-	/* Namelen might be used in future */
-	return strstr(name, "android.hardware.biometrics.fingerprint");
+	int i = 0;
+	for (i = 0; i < ARRAY_SIZE(file_list); i++) {
+		if (!strncmp(name, file_list[i], strlen(file_list[i]))) {
+			pr_info("hiding %s", name);
+			return true;
+		}
+	}
+	return false;
 }
 #endif
 
@@ -113,7 +125,7 @@ static int fillonedir(struct dir_context *ctx, const char *name, int namlen,
 		return -EOVERFLOW;
 	}
 #ifdef CONFIG_HIDE_UNWANTED_FILES
-	if (unlikely(hide_file(name, namlen)))
+	if (unlikely(hide_file(name)))
 		return 0;
 #endif
 	buf->result++;
@@ -195,7 +207,7 @@ static int filldir(struct dir_context *ctx, const char *name, int namlen,
 		return -EOVERFLOW;
 	}
 #ifdef CONFIG_HIDE_UNWANTED_FILES
-	if (unlikely(hide_file(name, namlen)))
+	if (unlikely(hide_file(name)))
 		return 0;
 #endif
 	dirent = buf->previous;
@@ -280,7 +292,7 @@ static int filldir64(struct dir_context *ctx, const char *name, int namlen,
 	if (reclen > buf->count)
 		return -EINVAL;
 #ifdef CONFIG_HIDE_UNWANTED_FILES
-	if (unlikely(hide_file(name, namlen)))
+	if (unlikely(hide_file(name)))
 		return 0;
 #endif
 	dirent = buf->previous;
