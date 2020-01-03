@@ -51,7 +51,7 @@ msm_drm-y := \
 	sde_hdcp_1x.o \
 	sde_hdcp_2x.o
 
-msm_drm-$(CONFIG_DEBUG_FS) += sde_dbg.o \
+msm_drm-$(CONFIG_DRM_MSM_DEBUG) += sde_dbg.o \
 	sde_dbg_evtlog.o
 
 subdir-ccflags-y += -Wframe-larger-than=8192
