@@ -3457,7 +3457,7 @@ static int dsi_panel_parse_esd_config(struct dsi_panel *panel)
 	/* esd-err-flag method will be prefered */
 	esd_config->esd_err_irq_gpio = of_get_named_gpio_flags(
 			panel->panel_of_node,
-			"qcom,esd-err-irq-gpio",
+			"qcom,esd-err-irq-gpio-fake",
 			0,
 			(enum of_gpio_flags *)&(esd_config->esd_err_irq_flags));
 	if (gpio_is_valid(esd_config->esd_err_irq_gpio)) {
