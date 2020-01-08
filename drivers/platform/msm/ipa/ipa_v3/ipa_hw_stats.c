@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1445,7 +1445,7 @@ static ssize_t ipa_debugfs_reset_quota_stats(struct file *file,
 		goto bail;
 	}
 
-	missing = copy_from_user(dbg_buff, ubuf, min(sizeof(dbg_buff), count));
+	missing = copy_from_user(dbg_buff, ubuf, count);
 	if (missing) {
 		ret = -EFAULT;
 		goto bail;
@@ -1544,7 +1544,7 @@ static ssize_t ipa_debugfs_reset_tethering_stats(struct file *file,
 		goto bail;
 	}
 
-	missing = copy_from_user(dbg_buff, ubuf, min(sizeof(dbg_buff), count));
+	missing = copy_from_user(dbg_buff, ubuf, count);
 	if (missing) {
 		ret = -EFAULT;
 		goto bail;
@@ -1678,7 +1678,7 @@ static ssize_t ipa_debugfs_control_flt_rt_stats(struct file *file,
 		goto bail;
 	}
 
-	missing = copy_from_user(dbg_buff, ubuf, min(sizeof(dbg_buff), count));
+	missing = copy_from_user(dbg_buff, ubuf, count);
 	if (missing) {
 		ret = -EFAULT;
 		goto bail;
@@ -1779,7 +1779,7 @@ static ssize_t ipa_debugfs_reset_drop_stats(struct file *file,
 		goto bail;
 	}
 
-	missing = copy_from_user(dbg_buff, ubuf, min(sizeof(dbg_buff), count));
+	missing = copy_from_user(dbg_buff, ubuf, count);
 	if (missing) {
 		ret = -EFAULT;
 		goto bail;
