@@ -2435,7 +2435,7 @@ static int goodix_ts_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	if (core_data->gtp_tp_class == NULL)
+	if (core_data->gtp_tp_class == NULL) {
 #ifdef CONFIG_TOUCHSCREEN_XIAOMI_TOUCHFEATURE
 		core_data->gtp_tp_class = get_xiaomi_touch_class();
 		if (core_data->gtp_tp_class == NULL)
@@ -2443,6 +2443,7 @@ static int goodix_ts_probe(struct platform_device *pdev)
 #else
 		core_data->gtp_tp_class = class_create(THIS_MODULE, "touch");
 #endif
+  }
 	core_data->gtp_touch_dev = device_create(core_data->gtp_tp_class, NULL, 0x5d, core_data, "tp_dev");
 	if (IS_ERR(core_data->gtp_touch_dev)) {
 		ts_err("ERROR: Cannot create device for the sysfs!\n");
