@@ -1,6 +1,5 @@
-- Some performance improvements related to CPU throttling.
-- 4.14.163
-- Selinux performance improvements.
-- Compiled with LTO, you might see some performance improvement.
-- Allowed phy poweroff, should reduce power consumption when screen is displaying static images.
-- Fixed a few memory allocation problems.
+- Installer update: fixed "no ramoops found to unpack" error, impoved Magisk preservation.
+- Switched to LMKD, memory management should be improved.
+- Enabled TTL targeting.
+- Merged 4.14.165.
+- Sped up a few frequent allocations.
