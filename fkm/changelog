@@ -1,0 +1,6 @@
+- Some performance improvements related to CPU throttling.
+- 4.14.163
+- Selinux performance improvements.
+- Compiled with LTO, you might see some performance improvement.
+- Allowed phy poweroff, should reduce power consumption when screen is displaying static images.
+- Fixed a few memory allocation problems.
