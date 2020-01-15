@@ -1,5 +1,1 @@
-- Installer update: fixed "no ramoops found to unpack" error, impoved Magisk preservation.
-- Switched to LMKD, memory management should be improved.
-- Enabled TTL targeting.
-- Merged 4.14.165.
-- Sped up a few frequent allocations.
+- Reverted a problematic commit that could cause system to freeze.
