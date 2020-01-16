@@ -14,7 +14,6 @@
 #include "kgsl_sharedmem.h"
 #include "a3xx_reg.h"
 #include "adreno_pm4types.h"
-#include <linux/cache.h>
 
 #define A5XX_PFP_PER_PROCESS_UCODE_VER 0x5FF064
 #define A5XX_PM4_PER_PROCESS_UCODE_VER 0x5FF052
@@ -794,8 +793,6 @@ static int _set_pagetable_cpu(struct adreno_ringbuffer *rb,
 	return 0;
 }
 
-static struct kmem_cache *adreno_iommu_cache;
-
 /**
  * _set_pagetable_gpu() - Use GPU to switch the pagetable
  * @rb: The rb in which commands to switch pagetable are to be
@@ -809,7 +806,7 @@ static int _set_pagetable_gpu(struct adreno_ringbuffer *rb,
 	unsigned int *link = NULL, *cmds;
 	int result;
 
-	link = kmem_cache_alloc(adreno_iommu_cache, GFP_KERNEL);
+	link = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (link == NULL)
 		return -ENOMEM;
 
@@ -817,7 +814,7 @@ static int _set_pagetable_gpu(struct adreno_ringbuffer *rb,
 
 	/* If we are in a fault the MMU will be reset soon */
 	if (test_bit(ADRENO_DEVICE_FAULT, &adreno_dev->priv)) {
-		kmem_cache_free(adreno_iommu_cache, link);
+		kfree(link);
 		return 0;
 	}
 
@@ -841,7 +838,7 @@ static int _set_pagetable_gpu(struct adreno_ringbuffer *rb,
 			KGSL_CMD_FLAGS_PMODE, link,
 			(unsigned int)(cmds - link));
 
-	kmem_cache_free(adreno_iommu_cache, link);
+	kfree(link);
 	return result;
 }
 
@@ -856,8 +853,7 @@ int adreno_iommu_init(struct adreno_device *adreno_dev)
 
 	if (kgsl_mmu_get_mmutype(device) == KGSL_MMU_TYPE_NONE)
 		return 0;
-	adreno_iommu_cache = kmem_cache_create("adreno_iommu_cache",
-			PAGE_SIZE, 0, SLAB_HWCACHE_ALIGN | SLAB_PANIC, NULL);
+
 	/*
 	 * A nop is required in an indirect buffer when switching
 	 * pagetables in-stream
