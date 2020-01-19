@@ -7391,8 +7391,7 @@ static inline bool task_fits_max(struct task_struct *p, int cpu)
 	if (capacity == max_capacity)
 		return true;
 
-	if ((task_boost_policy(p) == SCHED_BOOST_ON_BIG ||
-			schedtune_task_boost(p) > 10) &&
+	if (task_boost_policy(p) == SCHED_BOOST_ON_BIG &&
 			is_min_capacity_cpu(cpu))
 		return false;
 
@@ -7510,7 +7509,6 @@ static inline int find_best_target(struct task_struct *p, int *backup_cpu,
 	bool next_group_higher_cap = false;
 	int isolated_candidate = -1;
 	int mid_cap_orig_cpu = cpu_rq(smp_processor_id())->rd->mid_cap_orig_cpu;
-	struct task_struct *curr_tsk;
 
 	*backup_cpu = -1;
 
@@ -7923,13 +7921,6 @@ static inline int find_best_target(struct task_struct *p, int *backup_cpu,
 	 *   a) ACTIVE CPU: target_cpu
 	 *   b) IDLE CPU: best_idle_cpu
 	 */
-	if (target_cpu != -1 && !idle_cpu(target_cpu) &&
-			best_idle_cpu != -1) {
-		curr_tsk = READ_ONCE(cpu_rq(target_cpu)->curr);
-		if (curr_tsk && schedtune_task_boost_rcu_locked(curr_tsk)) {
-			target_cpu = best_idle_cpu;
-		}
-	}
 
 	if (target_cpu == -1)
 		target_cpu = prefer_idle
