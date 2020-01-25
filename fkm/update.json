@@ -1,11 +1,11 @@
 {
   "kernel": {
     "name": "F1xy-raphael",
-    "version": "0.08-1",
-    "link": "https://github.com/YaroST12/RAPHAEL_Kernel/releases/download/v0.08-1/F1xy-Raphael-v0.08-1.zip",
+    "version": "0.09",
+    "link": "https://github.com/YaroST12/RAPHAEL_Kernel/releases/download/v0.09/F1xy-Raphael-v0.09-MI9FOD.zip",
     "changelog_url": "https://raw.githubusercontent.com/YaroST12/RAPHAEL_Kernel/Q-raphael/fkm/changelog",
-    "date": "2020-1-16",
-    "sha1": "e4c46f9bf41cef4fa8a058b73e9bb0424a54782c"
+    "date": "2020-1-25",
+    "sha1": "e64ba0c5de95a83e10fa0758119772b446493bad"
   },
   "support": {
     "link": "https://t.me/f1xy_kernel_raphael"
