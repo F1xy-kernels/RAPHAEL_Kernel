@@ -1,7 +1,8 @@
-- Switched to Mi9 FOD implmentation, hopefully temporarily.
-- Reverted API that forced some threads to big cluster.
+- Added back and fixed an API that forced some threads to big cluster.
 - Silenced some more logspam.
-- Refined task placement logic.
-- Optimized a few more frequent memory allocations.
-- Minimal cpu frquency will be set to minimum when screen goes offline.
-- Updated SLMK.
+- 4.14.169.
+- Reduced the size of kernel and slightly increased overall performance by dropping unnececarry debug.
+- Slightly improved RCU performance.
+- Improved DDR bus boosting a bit.
+- Slight stune adjustments.
+- FKM users get a build with old FOD implementation.
