@@ -44,6 +44,7 @@
 #include <linux/hrtimer.h>
 #include <linux/debugfs.h>
 #include <uapi/misc/drv8846.h>
+#include <linux/ktime.h>
 
 
 #define DRV8846_DEV_NAME "ti,drv8846"
@@ -54,6 +55,8 @@
 #define HIGH_PERIOD_DEFAULT_NS 		52083
 #define HIGH_DURATION_DEFAULT_MS	700
 #define DEFAULT_STEP_MODE			2
+
+#define MOTOR_USE_WAIT_MS		10000 // wait time after boot in ms
 
 static DECLARE_WAIT_QUEUE_HEAD(poll_wait_queue);
 
@@ -98,6 +101,19 @@ struct drv8846_soc_ctrl {
 
 	enum running_state	state;
 };
+
+/*
+ * Wait at least 10 sec before accepting userspace
+ * requests to move the popup camera/
+ */
+static bool drv8846_use_motor(void)
+{
+	if (ktime_to_ms(ktime_get_boottime()) < MOTOR_USE_WAIT_MS) {
+		pr_debug("too early for motor");
+		return false;
+	}
+	return true;
+}
 
 static int __drv8846_config_pwm(struct drv8846_soc_ctrl *mctrl,
 				struct pwm_setting *pwm)
@@ -188,6 +204,9 @@ static enum hrtimer_restart pwm_hrtimer_handler(struct hrtimer *timer)
 void drv8846_move(struct drv8846_soc_ctrl *mctrl, uint8_t dir)
 {
 	pr_debug("move %s\n", dir ? "up" : "down");
+
+	if (!drv8846_use_motor())
+		return;
 
 	hrtimer_start(&mctrl->pwm_timer,
 			ktime_set(mctrl->rampup_duration_ms / MSEC_PER_SEC,
