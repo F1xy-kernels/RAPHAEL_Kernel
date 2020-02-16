@@ -1,8 +1,8 @@
-- Added back and fixed an API that forced some threads to big cluster.
-- Silenced some more logspam.
-- 4.14.169.
-- Reduced the size of kernel and slightly increased overall performance by dropping unnececarry debug.
-- Slightly improved RCU performance.
-- Improved DDR bus boosting a bit.
-- Slight stune adjustments.
-- FKM users get a build with old FOD implementation.
+- Merged latest CAF changes and 4.14.170.
+- Memory allocation security improvements from GrapheneOS.
+- Updated and improved simple_lmk, it will hold up much better under heavy RAM usage.
+- Fixed powerhal on some ROMs.
+- A few tcp improvements.
+- Corrected devfreq_boost frequencies.
+- Task scheduling improvements by RenderBroken and from mainline.
+- Some bugfixes to various drivers from msm-4.19.
