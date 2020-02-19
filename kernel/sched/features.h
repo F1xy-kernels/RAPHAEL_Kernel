@@ -143,12 +143,3 @@ SCHED_FEAT(SCHEDTUNE_BOOST_HOLD_ALL, false)
  * If disabled, boosts will only bias tasks to higher-capacity CPUs.
  */
 SCHED_FEAT(SCHEDTUNE_BOOST_UTIL, true)
-
-/*
- * If the sync flag is set but ignored, prefer to
- * select cpu in the same cluster as current. So
- * if current is a big cpu and sync is set, indicate
- * that the selection algorithm for a boosted task
- * should be used.
- */
-SCHED_FEAT(SYNC_BOOST, true)
