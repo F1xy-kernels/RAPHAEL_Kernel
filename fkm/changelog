@@ -1,8 +1,6 @@
-- Merged latest CAF changes and 4.14.170.
-- Memory allocation security improvements from GrapheneOS.
-- Updated and improved simple_lmk, it will hold up much better under heavy RAM usage.
-- Fixed powerhal on some ROMs.
-- A few tcp improvements.
-- Corrected devfreq_boost frequencies.
-- Task scheduling improvements by RenderBroken and from mainline.
-- Some bugfixes to various drivers from msm-4.19.
+v0.11 -> v0.12
+- Merged latest CAF changes and 4.14.171.
+- Fixed idle drain issue.
+- Binder updates from msm-4.19.
+- Improved memory allocation logic.
+- Added a short RAM frequency boost when touch input is registered.
