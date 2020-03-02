@@ -655,8 +655,7 @@ int avtab_write(struct policydb *p, struct avtab *a, void *fp)
 
 	return rc;
 }
-
-void __init avtab_cache_init(void)
+void avtab_cache_init(void)
 {
 	avtab_node_cachep = kmem_cache_create("avtab_node",
 					      sizeof(struct avtab_node),
@@ -664,4 +663,10 @@ void __init avtab_cache_init(void)
 	avtab_xperms_cachep = kmem_cache_create("avtab_extended_perms",
 						sizeof(struct avtab_extended_perms),
 						0, SLAB_PANIC, NULL);
+}
+
+void avtab_cache_destroy(void)
+{
+	kmem_cache_destroy(avtab_node_cachep);
+	kmem_cache_destroy(avtab_xperms_cachep);
 }

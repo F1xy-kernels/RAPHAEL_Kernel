@@ -1190,7 +1190,7 @@ static int pt_event_addr_filters_validate(struct list_head *filters)
 		if (!filter->range || !filter->size)
 			return -EOPNOTSUPP;
 
-		if (!filter->path.dentry) {
+		if (!filter->inode) {
 			if (!valid_kernel_ip(filter->offset))
 				return -EINVAL;
 
@@ -1208,8 +1208,7 @@ static int pt_event_addr_filters_validate(struct list_head *filters)
 static void pt_event_addr_filters_sync(struct perf_event *event)
 {
 	struct perf_addr_filters_head *head = perf_event_addr_filters(event);
-	unsigned long msr_a, msr_b;
-	struct perf_addr_filter_range *fr = event->addr_filter_ranges;
+	unsigned long msr_a, msr_b, *offs = event->addr_filters_offs;
 	struct pt_filters *filters = event->hw.addr_filters;
 	struct perf_addr_filter *filter;
 	int range = 0;
@@ -1218,12 +1217,12 @@ static void pt_event_addr_filters_sync(struct perf_event *event)
 		return;
 
 	list_for_each_entry(filter, &head->list, entry) {
-		if (filter->path.dentry && !fr[range].start) {
+		if (filter->inode && !offs[range]) {
 			msr_a = msr_b = 0;
 		} else {
 			/* apply the offset */
-			msr_a = fr[range].start;
-			msr_b = msr_a + fr[range].size - 1;
+			msr_a = filter->offset + offs[range];
+			msr_b = filter->size + msr_a - 1;
 		}
 
 		filters->filter[range].msr_a  = msr_a;
