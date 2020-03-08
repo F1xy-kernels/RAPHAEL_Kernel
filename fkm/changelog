@@ -1,6 +1,9 @@
-v0.11 -> v0.12
-- Merged latest CAF changes and 4.14.171.
-- Fixed idle drain issue.
-- Binder updates from msm-4.19.
-- Improved memory allocation logic.
-- Added a short RAM frequency boost when touch input is registered.
+- Reverted potentially unstable ION/Iommu changes.
+- Backported ION changes from msm-4.19.
+- Fixed a so-called "1 fps bug" when the system would become extremely slow after some time.
+- Reverted UFS changes from Pixel 4.
+- Reduced minimal frequency of little cluster to 768 MHz.
+- Removed some more logging.
+- Updated SLMK.
+- Merged 4.14.172 and latest security patches.
+- Some minor logs cleanup, as always.
