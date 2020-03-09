@@ -728,6 +728,12 @@ int dsi_panel_set_fod_hbm_backlight(struct dsi_panel *panel, bool status) {
 		return 0;
 
 	if (status) {
+#ifdef CONFIG_EXPOSURE_ADJUSTMENT
+		if (ea_panel_is_enabled()) {
+			ea_panel_mode_ctrl(panel, 0);
+			panel->resend_ea = true;
+		}
+#endif
 		bl_level = panel->bl_config.bl_max_level;
 
 		if (panel->doze_state) {
@@ -745,6 +751,13 @@ int dsi_panel_set_fod_hbm_backlight(struct dsi_panel *panel, bool status) {
 		if (panel->doze_state) {
 			dsi_panel_set_doze_backlight(panel, bl_level);
 		}
+
+#ifdef CONFIG_EXPOSURE_ADJUSTMENT
+		if (panel->resend_ea) {
+			ea_panel_mode_ctrl(panel, 1);
+			panel->resend_ea = false;
+		}
+#endif
 	}
 
 	return rc;
