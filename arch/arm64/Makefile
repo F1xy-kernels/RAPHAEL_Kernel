@@ -123,10 +123,12 @@ KBUILD_CPPFLAGS	+= -mbig-endian
 CHECKFLAGS	+= -D__AARCH64EB__
 AS		+= -EB
 LD		+= -EB
+ifeq ($(cc-name),clang)
 ifeq ($(ld-name),gold)
 LDFLAGS		+= -maarch64_elf64_be_vec
 else
 LDFLAGS		+= -maarch64linuxb
+endif
 endif
 UTS_MACHINE	:= aarch64_be
 else
@@ -134,10 +136,12 @@ KBUILD_CPPFLAGS	+= -mlittle-endian
 CHECKFLAGS	+= -D__AARCH64EL__
 AS		+= -EL
 LD		+= -EL
+ifeq ($(cc-name),clang)
 ifeq ($(ld-name),gold)
 LDFLAGS		+= -maarch64_elf64_le_vec
 else
 LDFLAGS		+= -maarch64linux
+endif
 endif
 UTS_MACHINE	:= aarch64
 endif
