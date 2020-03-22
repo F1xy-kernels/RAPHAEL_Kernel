@@ -889,9 +889,6 @@ static bool idle_transition_complete(unsigned int idle_level,
 	return true;
 }
 
-static atomic_t we_are_screwed = ATOMIC_INIT(0);
-extern void unaffine_perf_irqs(void);
-extern void reaffine_perf_irqs(void);
 static int a6xx_gmu_wait_for_lowest_idle(struct adreno_device *adreno_dev)
 {
 	struct kgsl_device *device = KGSL_DEVICE(adreno_dev);
@@ -907,10 +904,6 @@ static int a6xx_gmu_wait_for_lowest_idle(struct adreno_device *adreno_dev)
 
 	t = jiffies + msecs_to_jiffies(GMU_IDLE_TIMEOUT);
 	do {
-		if (atomic_read(&we_are_screwed)) {
-			reaffine_perf_irqs();
-			atomic_set(&we_are_screwed, 0);
-		}
 		gmu_core_regread(device,
 			A6XX_GPU_GMU_CX_GMU_RPMH_POWER_STATE, &reg);
 		gmu_core_regread(device,
@@ -925,9 +918,6 @@ static int a6xx_gmu_wait_for_lowest_idle(struct adreno_device *adreno_dev)
 	ts2 = a6xx_gmu_read_ao_counter(device);
 	/* Check one last time */
 
-	/* We are screwed. Unaffine perf critical IRQs */
-	unaffine_perf_irqs();
-	atomic_set(&we_are_screwed, 1);
 	gmu_core_regread(device, A6XX_GPU_GMU_CX_GMU_RPMH_POWER_STATE, &reg);
 	gmu_core_regread(device, A6XX_GMU_SPTPRAC_PWR_CLK_STATUS, &reg1);
 
