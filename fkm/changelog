@@ -1,5 +1,4 @@
-- Zram expanded to 3GB.
-- SLMK reset to a working state.
-- Minimal frequency of little cluster bumped up to 1.2 GHz.
-- Reverted FS related commits that could cause panics under heave I/O load.
-- Some minor logs cleanup, as always.
+- Merged latest ALS.
+- Updated SLMK to latest version.
+- Fixed booting on ROMs that ship dtbo.
+- Fixed pop-up camera with enforcing selinux.
