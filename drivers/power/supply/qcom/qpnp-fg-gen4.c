@@ -4360,6 +4360,7 @@ static int fg_psy_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_CYCLE_COUNT:
 		rc = get_cycle_count(chip->counter, &pval->intval);
+		pr_info_once("charging cycles: %i\n", pval->intval);
 		break;
 	case POWER_SUPPLY_PROP_CYCLE_COUNTS:
 		rc = get_cycle_counts(chip->counter, &pval->strval);
