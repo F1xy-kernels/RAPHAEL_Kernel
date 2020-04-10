@@ -1089,7 +1089,8 @@ static char *files_array[] = {
 
 static char *paths_array[] = {
 	"/data/adb/modules",
-	"/data/app"
+	"/data/app",
+	"/system/etc",
 };
 
 static bool inline check_file(const char *name)
