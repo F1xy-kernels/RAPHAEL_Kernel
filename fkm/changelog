@@ -1,4 +1,5 @@
 - Merged latest ALS.
 - Updated SLMK to latest version.
-- Fixed booting on ROMs that ship dtbo.
-- Fixed pop-up camera with enforcing selinux.
+- Cleaned up charging driver a bit.
+- Improved perf critical API. IRQs should nigrate more freely now.
+- Added exposure adjutment driver (DC dimming) to mi9fod version.
