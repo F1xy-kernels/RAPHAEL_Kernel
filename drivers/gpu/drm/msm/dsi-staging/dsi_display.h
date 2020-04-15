@@ -199,8 +199,6 @@ struct dsi_display {
 	struct drm_connector *ext_conn;
 
 	const char *name;
-	bool is_prim_display;
-	bool is_first_boot;
 	const char *display_type;
 	const char *dsi_type;
 	struct list_head list;
@@ -611,8 +609,6 @@ void dsi_display_enable_event(struct drm_connector *connector,
  */
 int dsi_display_set_backlight(struct drm_connector *connector,
 		void *display, u32 bl_lvl);
-
-int dsi_panel_set_doze_backlight(struct dsi_display *display, u32 bl_lvl);
 
 /**
  * dsi_display_check_status() - check if panel is dead or alive
