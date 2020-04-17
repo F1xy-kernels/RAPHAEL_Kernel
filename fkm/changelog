@@ -1,5 +1,11 @@
 - Merged latest ALS.
-- Updated SLMK to latest version.
-- Cleaned up charging driver a bit.
-- Improved perf critical API. IRQs should nigrate more freely now.
-- Added exposure adjutment driver (DC dimming) to mi9fod version.
+- Switched to ZSTD for zram compression
+- Silenced some dmesg spam.
+- A bit more agressive task biasing towards big cores.
+- Fixed a few app crashes.
+- Touchscreen processing moved to big cluster.
+- Latest CAF and upstream merged.
+- Reduced ram boosting a little bit.
+- Fixed thermal throttling.
+- Improved scheduler a bit.
+- Relaxed CPU latency requirements for GPU.
