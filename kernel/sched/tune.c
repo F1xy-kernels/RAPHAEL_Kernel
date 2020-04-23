@@ -672,26 +672,6 @@ static int prefer_high_cap_write(struct cgroup_subsys_state *css,
 }
 
 #ifdef CONFIG_STUNE_ASSIST
-#ifdef CONFIG_SCHED_WALT
-static int sched_boost_override_write_wrapper(struct cgroup_subsys_state *css,
-					      struct cftype *cft, u64 override)
-{
-	if (task_is_booster(current))
-		return 0;
-
-	return sched_boost_override_write(css, cft, override);
-}
-
-static int sched_colocate_write_wrapper(struct cgroup_subsys_state *css,
-					struct cftype *cft, u64 colocate)
-{
-	if (task_is_booster(current))
-		return 0;
-
-	return sched_colocate_write(css, cft, colocate);
-}
-#endif
-
 static int boost_write_wrapper(struct cgroup_subsys_state *css,
 			       struct cftype *cft, s64 boost)
 {
@@ -709,6 +689,15 @@ static int prefer_idle_write_wrapper(struct cgroup_subsys_state *css,
 
 	return prefer_idle_write(css, cft, prefer_idle);
 }
+
+static int prefer_high_cap_write_wrapper(struct cgroup_subsys_state *css,
+				 struct cftype *cft, u64 prefer_high_cap)
+{
+	if (task_is_booster(current))
+		return 0;
+
+	return prefer_high_cap_write(css, cft, prefer_high_cap);
+}
 #endif
 
 static struct cftype files[] = {
@@ -716,12 +705,12 @@ static struct cftype files[] = {
 	{
 		.name = "sched_boost_no_override",
 		.read_u64 = sched_boost_override_read,
-		.write_u64 = sched_boost_override_write_wrapper,
+		.write_u64 = sched_boost_override_write,
 	},
 	{
 		.name = "colocate",
 		.read_u64 = sched_colocate_read,
-		.write_u64 = sched_colocate_write_wrapper,
+		.write_u64 = sched_colocate_write,
 	},
 #endif
 	{
@@ -737,7 +726,7 @@ static struct cftype files[] = {
 	{
 		.name = "prefer_high_cap",
 		.read_u64 = prefer_high_cap_read,
-		.write_u64 = prefer_high_cap_write,
+		.write_u64 = prefer_high_cap_write_wrapper,
 	},
 	{} /* terminate */
 };
@@ -767,18 +756,17 @@ struct st_data {
 	char *name;
 	int boost;
 	bool prefer_idle;
-	bool colocate;
-	bool no_override;
+	bool prefer_high_cap;
 };
 
 static void write_default_values(struct cgroup_subsys_state *css)
 {
 	static struct st_data st_targets[] = {
-		{ "audio-app",	0, 0, 0, 0 },
-		{ "background",	0, 0, 1, 0 },
-		{ "foreground",	1, 1, 0, 1 },
-		{ "rt",		0, 0, 0, 0 },
-		{ "top-app",	5, 1, 0, 1 },
+		{ "audio-app",		0, 0, 0 },
+		{ "background",		0, 0, 0 },
+		{ "foreground",		0, 0, 1 },
+		{ "rt",			0, 0, 0 },
+		{ "top-app",		5, 1, 1 },
 	};
 	int i;
 
@@ -788,15 +776,10 @@ static void write_default_values(struct cgroup_subsys_state *css)
 		if (!strcmp(css->cgroup->kn->name, tgt.name)) {
 			boost_write(css, NULL, tgt.boost);
 			prefer_idle_write(css, NULL, tgt.prefer_idle);
-#ifndef CONFIG_SCHED_WALT
-			pr_info("stune_assist: setting values for %s: boost=%d prefer_idle=%d\n",
-				tgt.name, tgt.boost, tgt.prefer_idle);
-#else
-			sched_colocate_write(css, NULL, tgt.colocate);
-			sched_boost_override_write(css, NULL, tgt.no_override);
-			pr_info("stune_assist: setting values for %s: boost=%d prefer_idle=%d colocate=%d no_override=%d\n",
-				tgt.name, tgt.boost, tgt.prefer_idle, tgt.colocate, tgt.no_override);
-#endif
+			prefer_high_cap_write(css, NULL, tgt.prefer_high_cap);
+			pr_info("stune_assist: setting values for %s: boost=%d \
+			prefer_idle=%d, prefer_high_cap=%d\n",
+				tgt.name, tgt.boost, tgt.prefer_idle, tgt.prefer_high_cap);
 		}
 	}
 }
