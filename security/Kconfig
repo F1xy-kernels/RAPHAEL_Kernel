@@ -230,21 +230,6 @@ config STATIC_USERMODEHELPER_PATH
 	  If you wish for all usermode helper programs to be disabled,
 	  specify an empty string here (i.e. "").
 
-config PAGE_SANITIZE
-	bool "Sanitize pages"
-	default y
-	help
-	  Zero fill page allocations on free, reducing the lifetime of
-	  sensitive data and helping to mitigate use-after-free bugs.
-
-config PAGE_SANITIZE_VERIFY
-	bool "Verify sanitized pages"
-	depends on PAGE_SANITIZE
-	default y
-	help
-	  Verify that newly allocated pages are zeroed to detect
-	  write-after-free bugs.
-
 source security/selinux/Kconfig
 source security/smack/Kconfig
 source security/tomoyo/Kconfig
