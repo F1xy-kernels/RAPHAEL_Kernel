@@ -511,8 +511,10 @@ static int gsx_gesture_ist(struct goodix_ts_core *core_data,
 		}
 #endif
 		input_report_key(core_data->input_dev, KEY_WAKEUP, 1);
+		input_report_key(core_data->input_dev, KEY_DOUBLE_TAP, 1);
 		input_sync(core_data->input_dev);
 		input_report_key(core_data->input_dev, KEY_WAKEUP, 0);
+		input_report_key(core_data->input_dev, KEY_DOUBLE_TAP, 0);
 		input_sync(core_data->input_dev);
 		goto gesture_ist_exit;
 
