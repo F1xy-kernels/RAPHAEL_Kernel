@@ -1,11 +1,14 @@
 - Merged latest ALS.
-- Reverted scheduler changes from 0.17
-- Adjusted throttling to throttle prime core less.
-- Internal scheduler clock set to 300.
-- A few ION backports from 4.19
-- Cpuidle optimizations from Sultan Alsawaf.
-- Scheduler tuning and fixes from latest Pixel 4 update.
-- Switched to s2idle for deep sleep.
-- Added f2fs rapid GC, did not update to the latest f2fs version yet (and won't).
-- UFS (memory chips) processing moved to big cluster, GPU moved back to little.
-- RCU fixes from 4.19.
+- Disallowed taking down cores 4-7 completely (big and prime).
+- Reverted some commits that caused panics.
+- Some scheduler and tcp improvements.
+- Latest upstream and CAF tags merged.
+- Fixed dt2w on AOSPA.
+- Charger improvements/fixes.
+- Renamed the OLDFOD into LOSFOD to avoid confusion.
+
+Standalone versions will ship embedded dtbo from now on,
+which means that it will completely ignore dtbo that you flashed.
+
+Version that will ship in ROMs will accept custom dtbos and screen OC
+should work fine now.
