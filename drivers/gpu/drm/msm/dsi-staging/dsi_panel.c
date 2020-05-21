@@ -1011,6 +1011,11 @@ static int dsi_panel_parse_timing(struct dsi_mode_info *mode,
 		goto error;
 	}
 
+	if (mode->refresh_rate != 60) {
+		pr_warn("setting panel refresh rate to values above 60 is not allowed");
+		mode->refresh_rate = 60;
+	}
+
 	rc = utils->read_u32(utils->data, "qcom,mdss-dsi-panel-width",
 				  &mode->h_active);
 	if (rc) {
@@ -4182,6 +4187,7 @@ int dsi_panel_validate_mode(struct dsi_panel *panel,
 
 int dsi_panel_get_mode_count(struct dsi_panel *panel)
 {
+	const u32 SINGLE_MODE_SUPPORT = 1;
 	struct dsi_parser_utils *utils;
 	struct device_node *timings_np;
 	int count, rc = 0;
@@ -4210,6 +4216,11 @@ int dsi_panel_get_mode_count(struct dsi_panel *panel)
 		rc = -EINVAL;
 		goto error;
 	}
+
+	/* No multiresolution support is available for video mode panels */
+	if (panel->panel_mode != DSI_OP_CMD_MODE &&
+		!panel->host_config.ext_bridge_num)
+		count = SINGLE_MODE_SUPPORT;
 
 	panel->num_timing_nodes = count;
 
