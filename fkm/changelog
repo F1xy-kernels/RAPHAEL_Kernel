@@ -1,9 +1,2 @@
 - Merged latest ALS.
-- Reduced devfreq boosting to reduce heating and battery drain.
-- Moved touchscreen processing back to small cores. Updated touchscreen firmware.
-- Improved scheduler.
-- Bumped up big cores minimal frequency.
-- SLMK and memory management improvements.
-
-All versions of this kernel will ship embedded dtbo.
-Screen overclocking won't be supported.
+- Updated LOSFOD implementation to the latest version.
