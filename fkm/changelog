@@ -1,14 +1,9 @@
 - Merged latest ALS.
-- Disallowed taking down cores 4-7 completely (big and prime).
-- Reverted some commits that caused panics.
-- Some scheduler and tcp improvements.
-- Latest upstream and CAF tags merged.
-- Fixed dt2w on AOSPA.
-- Charger improvements/fixes.
-- Renamed the OLDFOD into LOSFOD to avoid confusion.
+- Reduced devfreq boosting to reduce heating and battery drain.
+- Moved touchscreen processing back to small cores. Updated touchscreen firmware.
+- Improved scheduler.
+- Bumped up big cores minimal frequency.
+- SLMK and memory management improvements.
 
-Standalone versions will ship embedded dtbo from now on,
-which means that it will completely ignore dtbo that you flashed.
-
-Version that will ship in ROMs will accept custom dtbos and screen OC
-should work fine now.
+All versions of this kernel will ship embedded dtbo.
+Screen overclocking won't be supported.
