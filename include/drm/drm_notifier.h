@@ -10,6 +10,7 @@
 #define		DRM_EARLY_EVENT_BLANK   0x01
 #define		DRM_EVENT_BLANK         0x02
 #define		DRM_R_EARLY_EVENT_BLANK 0x03
+#define		DRM_FOD_EVENT           0x04
 
 enum {
 	DRM_BLANK_UNBLANK = 0,
