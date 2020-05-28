@@ -237,6 +237,7 @@ struct dsi_panel {
 	bool dc_enable;
 	bool backlight_pulse_flag; /* true = 4 pulse and false = 1 pulse */
 
+	bool hbm_enabled;
 	bool fod_hbm_enabled; /* prevent set DISPPARAM_DOZE_BRIGHTNESS_HBM/LBM in FOD HBM */
 	bool fod_dimlayer_enabled;
 	bool fod_dimlayer_hbm_enabled;
