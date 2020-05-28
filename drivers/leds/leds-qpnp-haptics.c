@@ -2177,9 +2177,6 @@ static int qpnp_haptics_parse_dt(struct hap_chip *chip)
 		return rc;
 	}
 
-	if (IS_ENABLED(CONFIG_MACH_XIAOMI_RAPHAEL))
-		chip->vmax_mv = 3000;
-
 	chip->ilim_ma = HAP_ILIM_400_MA;
 	rc = of_property_read_u32(node, "qcom,ilim-ma", &temp);
 	if (!rc) {
