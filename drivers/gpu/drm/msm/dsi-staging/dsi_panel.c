@@ -3807,13 +3807,13 @@ struct dsi_panel *dsi_panel_get(struct device *parent,
 	if (rc)
 		pr_debug("failed to parse esd config, rc=%d\n", rc);
 
+	panel->power_mode = SDE_MODE_DPMS_OFF;
+
 	rc = dsi_panel_parse_mi_config(panel, of_node);
 	if (rc)
 		pr_err("failed to parse mi config, rc=%d\n", rc);
 
 	g_panel = panel;
-
-	panel->power_mode = SDE_MODE_DPMS_OFF;
 
 	drm_panel_init(&panel->drm_panel);
 	mutex_init(&panel->panel_lock);

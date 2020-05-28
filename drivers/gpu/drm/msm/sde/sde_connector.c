@@ -2129,7 +2129,7 @@ static void sde_connector_check_status_work(struct work_struct *work)
 
 	mutex_lock(&conn->lock);
 	if (!conn->ops.check_status ||
-			(conn->dpms_mode != DRM_MODE_DPMS_ON)) {
+			(conn->dpms_mode != SDE_MODE_DPMS_ON)) {
 		SDE_DEBUG("dpms mode: %d\n", conn->dpms_mode);
 		mutex_unlock(&conn->lock);
 		return;
@@ -2380,7 +2380,7 @@ struct drm_connector *sde_connector_init(struct drm_device *dev,
 	c_conn->display = display;
 
 	c_conn->dpms_mode = DRM_MODE_DPMS_ON;
-	c_conn->lp_mode = 0;
+	c_conn->lp_mode = SDE_MODE_DPMS_OFF;
 	c_conn->last_panel_power_mode = SDE_MODE_DPMS_ON;
 
 	sde_kms = to_sde_kms(priv->kms);
