@@ -3649,6 +3649,15 @@ static int dsi_panel_parse_mi_config(struct dsi_panel *panel,
 		pr_info("fod_off_dimming_delay %d\n", panel->fod_off_dimming_delay);
 	}
 
+	rc = utils->read_u32(of_node,
+			"qcom,disp-backlight-pulse-threshold", &panel->backlight_pulse_threshold);
+	if (rc) {
+		panel->backlight_pulse_threshold = BACKLIGHT_PLUSE_THRESHOLD;
+		pr_info("default backlight_pulse_threshold %d\n", BACKLIGHT_PLUSE_THRESHOLD);
+	} else {
+		pr_info("backlight_pulse_threshold %d\n", panel->backlight_pulse_threshold);
+	}
+
 	panel->fod_dimlayer_enabled = utils->read_bool(of_node,
 			"qcom,mdss-dsi-panel-fod-dimlayer-enabled");
 	if (panel->fod_dimlayer_enabled) {
@@ -3666,6 +3675,7 @@ static int dsi_panel_parse_mi_config(struct dsi_panel *panel,
 	panel->backlight_delta = 1;
 	panel->fod_flag = false;
 	panel->in_aod = false;
+	panel->backlight_pulse_flag = false;
 	panel->fod_hbm_off_time = ktime_get();
 	panel->fod_backlight_off_time = ktime_get();
 
@@ -3678,6 +3688,7 @@ static int dsi_panel_parse_mi_config(struct dsi_panel *panel,
 	panel->bl_lowlevel_duration = 0;
 	panel->hbm_duration = 0;
 	panel->hbm_times = 0;
+	panel->dc_enable = false;
 
 	return rc;
 }
@@ -5083,6 +5094,15 @@ static int panel_disp_param_send_lock(struct dsi_panel *panel, int param)
 		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DISP_HBM_OFF);
 		panel->skip_dimmingon = STATE_DIM_RESTORE;
 		break;
+	case DISPPARAM_DC_ON:
+		pr_info("DC on\n");
+		panel->dc_enable = true;
+		rc = dsi_panel_update_backlight(panel, panel->last_bl_lvl);
+		break;
+	case DISPPARAM_DC_OFF:
+		pr_info("DC off\n");
+		panel->dc_enable = false;
+		rc = dsi_panel_update_backlight(panel, panel->last_bl_lvl);
 	default:
 		break;
 	}
@@ -5394,6 +5414,7 @@ int dsi_panel_enable(struct dsi_panel *panel)
 	panel->fod_hbm_enabled = false;
 	panel->fod_dimlayer_hbm_enabled = false;
 	panel->in_aod = false;
+	panel->backlight_pulse_flag = false;
 	panel->skip_dimmingon = STATE_NONE;
 
 	dsi_panel_esd_irq_ctrl(panel, true);
@@ -5493,6 +5514,7 @@ int dsi_panel_disable(struct dsi_panel *panel)
 	panel->fod_hbm_enabled = false;
 	panel->fod_dimlayer_hbm_enabled = false;
 	panel->in_aod = false;
+	panel->backlight_pulse_flag = false;
 	panel->fod_backlight_flag = false;
 	panel->power_mode = SDE_MODE_DPMS_OFF;
 
