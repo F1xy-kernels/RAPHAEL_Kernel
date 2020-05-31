@@ -233,9 +233,6 @@ struct dsi_panel {
 	struct delayed_work cmds_work;
 	u32 last_bl_lvl;
 	s32 backlight_delta;
-	u32 backlight_pulse_threshold;
-	bool dc_enable;
-	bool backlight_pulse_flag; /* true = 4 pulse and false = 1 pulse */
 
 	bool hbm_enabled;
 	bool fod_hbm_enabled; /* prevent set DISPPARAM_DOZE_BRIGHTNESS_HBM/LBM in FOD HBM */
@@ -274,8 +271,6 @@ struct dsi_panel {
 	u64 bl_lowlevel_duration;
 	u64 hbm_duration;
 	u64 hbm_times;
-
-	bool panel_max_frame_rate;
 
 	int power_mode;
 	enum dsi_panel_physical_type panel_type;

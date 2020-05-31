@@ -23,7 +23,6 @@
 #include "sde_crtc.h"
 #include "sde_rm.h"
 #include "dsi_panel.h"
-#include "sde_trace.h"
 #include <linux/msm_drm_notify.h>
 
 #define BL_NODE_NAME_SIZE 32
@@ -700,11 +699,11 @@ int sde_connector_update_hbm(struct sde_connector *c_conn)
 	dim_layer_status = sde_crtc_get_dim_layer_status(c_conn->encoder->crtc->state);
 	if (!dim_layer_status) {
 		if (dsi_display->panel->fod_dimlayer_hbm_enabled) {
-			SDE_ATRACE_BEGIN("set_hbm_off");
 			mutex_lock(&dsi_display->panel->panel_lock);
 			sde_encoder_wait_for_event(c_conn->encoder, MSM_ENC_VBLANK);
 			if (dsi_display->drm_dev
-				&& ((dsi_display->drm_dev->doze_state == MSM_DRM_BLANK_LP1)	|| (dsi_display->drm_dev->doze_state == MSM_DRM_BLANK_LP2))) {
+				&& ((dsi_display->drm_dev->doze_state == MSM_DRM_BLANK_LP1)
+				|| (dsi_display->drm_dev->doze_state == MSM_DRM_BLANK_LP2))) {
 				if (dsi_display->panel->last_bl_lvl > dsi_display->panel->doze_backlight_threshold) {
 					pr_info("hbm fod off doze hbm on\n");
 					dsi_display_write_panel(dsi_display, &dsi_display->panel->cur_mode->priv_info->cmd_sets[DSI_CMD_SET_DOZE_HBM]);
@@ -729,7 +728,6 @@ int sde_connector_update_hbm(struct sde_connector *c_conn)
 
 			}
 			dsi_display->panel->fod_dimlayer_hbm_enabled = false;
-			SDE_ATRACE_END("set_hbm_off");
 			mutex_unlock(&dsi_display->panel->panel_lock);
 			if (rc) {
 				pr_err("failed to send DSI_CMD_HBM_OFF cmds, rc=%d\n", rc);
@@ -738,7 +736,6 @@ int sde_connector_update_hbm(struct sde_connector *c_conn)
 		}
 	} else {
 		if (!dsi_display->panel->fod_dimlayer_hbm_enabled) {
-			SDE_ATRACE_BEGIN("set_hbm_on");
 			mutex_lock(&dsi_display->panel->panel_lock);
 			pr_info("HBM fod on\n");
 			sde_encoder_wait_for_event(c_conn->encoder, MSM_ENC_VBLANK);
@@ -750,7 +747,6 @@ int sde_connector_update_hbm(struct sde_connector *c_conn)
 
 			dsi_display->panel->skip_dimmingon = STATE_DIM_BLOCK;
 			dsi_display->panel->fod_dimlayer_hbm_enabled = true;
-			SDE_ATRACE_END("set_hbm_on");
 			mutex_unlock(&dsi_display->panel->panel_lock);
 			if (rc) {
 				pr_err("failed to send DSI_CMD_HBM_ON cmds, rc=%d\n", rc);
@@ -2129,7 +2125,7 @@ static void sde_connector_check_status_work(struct work_struct *work)
 
 	mutex_lock(&conn->lock);
 	if (!conn->ops.check_status ||
-			(conn->dpms_mode != SDE_MODE_DPMS_ON)) {
+			(conn->dpms_mode != DRM_MODE_DPMS_ON)) {
 		SDE_DEBUG("dpms mode: %d\n", conn->dpms_mode);
 		mutex_unlock(&conn->lock);
 		return;
@@ -2380,7 +2376,7 @@ struct drm_connector *sde_connector_init(struct drm_device *dev,
 	c_conn->display = display;
 
 	c_conn->dpms_mode = DRM_MODE_DPMS_ON;
-	c_conn->lp_mode = SDE_MODE_DPMS_OFF;
+	c_conn->lp_mode = 0;
 	c_conn->last_panel_power_mode = SDE_MODE_DPMS_ON;
 
 	sde_kms = to_sde_kms(priv->kms);
