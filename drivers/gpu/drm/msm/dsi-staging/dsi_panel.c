@@ -663,16 +663,24 @@ static int dsi_panel_update_backlight(struct dsi_panel *panel,
 	int rc = 0;
 	struct mipi_dsi_device *dsi;
 
-	if (!panel || (bl_lvl > 0xffff)) {
+	if (!panel || (bl_lvl > panel->bl_config.bl_max_level)) {
 		pr_err("invalid params\n");
 		return -EINVAL;
 	}
 
 	dsi = &panel->mipi_device;
 
-	if (panel->bl_config.dcs_type_ss)
+	if (panel->bl_config.dcs_type_ss) {
+		if (0 == bl_lvl) {
+			dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DISP_DIMMINGOFF);
+			if (panel->fod_dimlayer_enabled) {
+				panel->fod_dimlayer_hbm_enabled = false;
+				pr_debug("set fod_dimlayer_hbm_enabled state:[%d], because bl_lvl is %d\n",
+								panel->fod_dimlayer_hbm_enabled, bl_lvl);
+			}
+		}
 		rc = mipi_dsi_dcs_set_display_brightness_ss(dsi, bl_lvl);
-	else
+	} else
 		rc = mipi_dsi_dcs_set_display_brightness(dsi, bl_lvl);
 
 	if (rc < 0)
@@ -745,9 +753,9 @@ int dsi_panel_set_doze_backlight(struct dsi_display *display, u32 bl_lvl)
 	panel = display->panel;
 	drm_dev = display->drm_dev;
 
-	if (panel->fod_hbm_enabled || panel->fod_backlight_flag) {
-		pr_info("%s FOD HBM open, skip value:%u [hbm=%d][fod_bl=%d]\n", __func__,
-			bl_lvl, panel->fod_hbm_enabled, panel->fod_backlight_flag);
+	if (panel->fod_hbm_enabled || panel->fod_backlight_flag || panel->fod_dimlayer_hbm_enabled) {
+		pr_debug("%s FOD HBM open, skip value:%u [hbm=%d][fod_bl=%d][dimlayer_fod=%d]\n", __func__,
+			bl_lvl, panel->fod_hbm_enabled, panel->fod_backlight_flag, panel->fod_dimlayer_hbm_enabled);
 		return rc;
 	}
 

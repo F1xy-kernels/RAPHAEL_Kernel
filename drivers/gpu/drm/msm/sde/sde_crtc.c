@@ -25,9 +25,9 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_flip_work.h>
-#include <drm/drm_notifier.h>
 #include <linux/clk/qcom.h>
 #include <linux/sde_rsc.h>
+#include <linux/msm_drm_notify.h>
 
 #include "sde_kms.h"
 #include "sde_hw_lm.h"
@@ -43,8 +43,6 @@
 #include "sde_power_handle.h"
 #include "sde_core_perf.h"
 #include "sde_trace.h"
-#include "dsi_drm.h"
-
 #include <linux/err.h>
 #include <linux/list.h>
 #include <linux/of.h>
@@ -69,6 +67,9 @@
 
 #define SDE_PSTATES_MAX (SDE_STAGE_MAX * 4)
 #define SDE_MULTIRECT_PLANE_MAX (SDE_STAGE_MAX * 2)
+
+#define to_drm_connector(d) dev_get_drvdata(d)
+#define to_dsi_bridge(x)  container_of((x), struct dsi_bridge, base)
 
 struct sde_crtc_custom_events {
 	u32 event;
@@ -3092,18 +3093,17 @@ void sde_crtc_complete_commit(struct drm_crtc *crtc,
 	sde_core_perf_crtc_update(crtc, 0, false);
 }
 
-void set_fod_dimlayer_status(struct drm_connector *connector, bool enabled)
+bool set_fod_dimlayer_status(struct drm_connector *connector, bool enable)
 {
 	struct dsi_display *dsi_display = get_primary_display();
 
 	if (!connector || !dsi_display || !dsi_display->panel) {
 		SDE_ERROR("invalid param\n");
-		return;
+		return false;
 	}
 
-	dsi_display->panel->fod_dimlayer_enabled = enabled;
-
-	return;
+	dsi_display->panel->fod_dimlayer_enabled = enable;
+	return true;
 }
 EXPORT_SYMBOL(set_fod_dimlayer_status);
 
@@ -3119,6 +3119,20 @@ bool get_fod_dimlayer_status(struct drm_connector *connector)
 	return dsi_display->panel->fod_dimlayer_enabled;
 }
 EXPORT_SYMBOL(get_fod_dimlayer_status);
+
+bool get_fod_dimlayer_hbm_enabled_status(struct drm_connector *connector)
+{
+	struct dsi_display *dsi_display = get_primary_display();
+
+	if (!connector || !dsi_display || !dsi_display->panel) {
+		SDE_ERROR("invalid param\n");
+		return false;
+	}
+
+	return dsi_display->panel->fod_dimlayer_hbm_enabled;
+}
+EXPORT_SYMBOL(get_fod_dimlayer_hbm_enabled_status);
+
 
 bool get_fod_ui_status(struct drm_connector *connector)
 {
@@ -3139,7 +3153,7 @@ void sde_crtc_fod_ui_ready(struct drm_crtc *crtc,
 	struct sde_crtc *sde_crtc;
 	struct sde_crtc_state *old_cstate;
 	struct sde_crtc_state *cstate;
-	struct drm_notify_data notify_data;
+	struct msm_drm_notifier notify_data;
 	struct dsi_display *dsi_display = get_primary_display();
 	int finger_down;
 	static bool fod_status_changed;
@@ -3177,10 +3191,6 @@ void sde_crtc_fod_ui_ready(struct drm_crtc *crtc,
 			      finger_down ? "pressed" : "up");
 		dsi_display->panel->fod_ui_ready = finger_down;
 		sysfs_notify(&dsi_display->drm_conn->kdev->kobj, NULL, "fod_ui_ready");
-#if 0
-		drm_notifier_call_chain(DRM_FOD_EVENT,
-				&notify_data);
-#endif
 		fod_status_changed = false;
 	}
 	if (old_cstate->finger_down != cstate->finger_down) {
@@ -3350,6 +3360,7 @@ static int sde_crtc_config_fingerprint_dim_layer(struct drm_crtc_state *crtc_sta
 	fingerprint_dim_layer->rect.w = mode->hdisplay;
 	fingerprint_dim_layer->rect.h = mode->vdisplay;
 	fingerprint_dim_layer->color_fill = (struct sde_mdss_color) {0, 0, 0, alpha};
+	pr_debug("the alpha of dim_layer is:%d\n", alpha);
 	cstate->fingerprint_dim_layer = fingerprint_dim_layer;
 
 	return 0;
