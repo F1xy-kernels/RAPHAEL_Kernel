@@ -375,6 +375,33 @@ static ssize_t disp_count_show(struct device *device,
 	return ret;
 }
 
+ssize_t drm_bridge_disp_param_get(struct drm_bridge *bridge, char *pbuf);
+static ssize_t disp_param_show(struct device *device,
+			   struct device_attribute *attr,
+			   char *buf)
+{
+	ssize_t ret = 0;
+	struct drm_connector *connector = NULL;
+	struct drm_encoder *encoder = NULL;
+	struct drm_bridge *bridge = NULL;
+
+	connector = to_drm_connector(device);
+	if (!connector)
+		return ret;
+
+	encoder = connector->encoder;
+	if (!encoder)
+		return ret;
+
+	bridge = encoder->bridge;
+	if (!bridge)
+		return ret;
+
+	ret = drm_bridge_disp_param_get(bridge, buf);
+
+	return ret;
+}
+
 extern bool get_fod_ui_status(struct drm_connector *connector);
 static ssize_t fod_ui_ready_show(struct device *device,
 			   struct device_attribute *attr,
@@ -436,7 +463,7 @@ static DEVICE_ATTR_RO(enabled);
 static DEVICE_ATTR_RO(dpms);
 static DEVICE_ATTR_RO(modes);
 static DEVICE_ATTR_RO(panel_info);
-static DEVICE_ATTR_WO(disp_param);
+static DEVICE_ATTR_RW(disp_param);
 static DEVICE_ATTR_RO(doze_brightness);
 static DEVICE_ATTR_RW(mipi_reg);
 static DEVICE_ATTR_RW(disp_count);
