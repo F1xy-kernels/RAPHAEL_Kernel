@@ -268,7 +268,11 @@ cmd_gzip = (cat $(filter-out FORCE,$^) | gzip -n -f -9 > $@) || \
 
 # DTC
 # ---------------------------------------------------------------------------
+ifeq ($(CONFIG_BUILD_ARM64_EMBEDDED_DTB),y)
 DTC ?= $(objtree)/scripts/dtc-aosp/dtc-aosp
+else
+DTC ?= $(objtree)/scripts/dtc/dtc
+endif
 
 # Silence warnings
 DTC_FLAGS += -q
@@ -336,7 +340,7 @@ dtc-tmp = $(subst $(comma),_,$(dot-target).dts.tmp)
 # mkdtimg
 #----------------------------------------------------------------------------
 quiet_cmd_mkdtimg = DTBOIMG $@
-cmd_mkdtimg = python2 $(srctree)/scripts/ufdt/libufdt/utils/src/mkdtboimg.py cfg_create $@ $<
+cmd_mkdtimg = mkdtimg cfg_create $@ $<
 
 # cat
 # ---------------------------------------------------------------------------
