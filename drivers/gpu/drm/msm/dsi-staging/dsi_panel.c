@@ -827,8 +827,6 @@ int dsi_panel_set_backlight(struct dsi_panel *panel, u32 bl_lvl)
 	if (panel->host_config.ext_bridge_num)
 		return 0;
 
-	pr_debug("backlight type:%d lvl:%d\n", bl->type, bl_lvl);
-
 	if (0 == bl_lvl)
 		dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DISP_DIMMINGOFF);
 
@@ -847,11 +845,8 @@ int dsi_panel_set_backlight(struct dsi_panel *panel, u32 bl_lvl)
 		rc = backlight_device_set_brightness(bl->raw_bd, bl_temp);
 		break;
 	case DSI_BACKLIGHT_DCS:
-		if (panel->fod_backlight_flag) {
-			pr_info("fod_backlight_flag set\n");
-		} else {
+		if (!panel->fod_backlight_flag)
 			rc = dsi_panel_update_backlight(panel, bl_temp);
-		}
 		break;
 	case DSI_BACKLIGHT_EXTERNAL:
 		break;
@@ -859,7 +854,6 @@ int dsi_panel_set_backlight(struct dsi_panel *panel, u32 bl_lvl)
 		rc = dsi_panel_update_pwm_backlight(panel, bl_lvl);
 		break;
 	default:
-		pr_err("Backlight type(%d) not supported\n", bl->type);
 		rc = -ENOTSUPP;
 	}
 
@@ -872,15 +866,12 @@ int dsi_panel_set_backlight(struct dsi_panel *panel, u32 bl_lvl)
 			panel->skip_dimmingon = STATE_NONE;
 	}
 
-	if (bl_lvl > 0 && panel->last_bl_lvl == 0) {
-		pr_info("crc off when quickly power on\n");
+	if (bl_lvl > 0 && panel->last_bl_lvl == 0)
 		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DISP_CRC_OFF);
-	}
 
-	if (bl_lvl == 0) {
-		pr_info("DC off when last backlight is 0\n");
+	if (bl_lvl == 0)
 		panel->dc_enable = false;
-	}
+
 	panel->last_bl_lvl = bl_lvl;
 	return rc;
 }
