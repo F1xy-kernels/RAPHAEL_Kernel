@@ -58,8 +58,6 @@ msm_drm-y := \
 msm_drm-$(CONFIG_DRM_MSM_DEBUG) += sde_dbg.o \
 	sde_dbg_evtlog.o
 
-subdir-ccflags-y += -Wframe-larger-than=8192
-
 msm_drm-$(CONFIG_DRM_MSM_HDMI) += hdmi/hdmi.o \
 	hdmi/hdmi_audio.o \
 	hdmi/hdmi_bridge.o \
