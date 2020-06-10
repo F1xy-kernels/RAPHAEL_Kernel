@@ -718,13 +718,15 @@ int sde_connector_update_hbm(struct sde_connector *c_conn)
 				dsi_display->panel->in_aod = true;
 				dsi_display->panel->skip_dimmingon = STATE_DIM_BLOCK;
 			} else {
-				dsi_display->panel->fod_dimlayer_hbm_enabled = false;
+				/* disable FOD HBM */
 				if (dsi_display->panel->elvss_dimming_check_enable) {
 					rc = dsi_display_write_panel(dsi_display, &dsi_display->panel->hbm_fod_off);
 				} else {
 					rc = dsi_display_write_panel(dsi_display, &dsi_display->panel->cur_mode->priv_info->cmd_sets[DSI_CMD_SET_DISP_HBM_FOD_OFF]);
 				}
+
 				dsi_display->panel->skip_dimmingon = STATE_DIM_RESTORE;
+				dsi_display->panel->fod_dimlayer_hbm_enabled = false;
 				pr_debug("HBM fod off\n");
 				sysfs_notify(&dsi_display->drm_conn->kdev->kobj, NULL, "dimlayer_hbm_enabled");
 				pr_debug("notify hbm off to displayfeature\n");
@@ -745,22 +747,25 @@ int sde_connector_update_hbm(struct sde_connector *c_conn)
 			pr_debug("wait one frame for hbm on\n");
 			if (dsi_display->panel->last_bl_lvl || dsi_display->drm_dev->state == MSM_DRM_BLANK_LP1
 							|| dsi_display->drm_dev->state == MSM_DRM_BLANK_LP2) {
-				dsi_display->panel->fod_dimlayer_hbm_enabled = true;
-				dsi_display->panel->skip_dimmingon = STATE_DIM_BLOCK;
+				/* enable FOD HBM */
 				if (dsi_display->panel->elvss_dimming_check_enable) {
 					rc = dsi_display_write_panel(dsi_display, &dsi_display->panel->hbm_fod_on);
 				} else {
 					rc = dsi_display_write_panel(dsi_display, &dsi_display->panel->cur_mode->priv_info->cmd_sets[DSI_CMD_SET_DISP_HBM_FOD_ON]);
 				}
+				dsi_display->panel->skip_dimmingon = STATE_DIM_BLOCK;
+				dsi_display->panel->fod_dimlayer_hbm_enabled = true;
 				pr_debug("HBM fod on\n");
 				sysfs_notify(&dsi_display->drm_conn->kdev->kobj, NULL, "dimlayer_hbm_enabled");
 				pr_debug("notify hbm on to displayfeature\n");
 			}
+
 			if (dsi_display->panel->dc_enable) {
 				dsi_display->panel->dc_enable = false;
 				pr_debug("fod set CRC OFF\n");
 				dsi_display_write_panel(dsi_display, &dsi_display->panel->cur_mode->priv_info->cmd_sets[DSI_CMD_SET_DISP_CRC_OFF]);
 			}
+
 			mutex_unlock(&dsi_display->panel->panel_lock);
 			if (rc) {
 				pr_err("failed to send DSI_CMD_HBM_ON cmds, rc=%d\n", rc);
