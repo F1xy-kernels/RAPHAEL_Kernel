@@ -91,7 +91,6 @@ struct dsi_dyn_clk_caps {
 	bool dyn_clk_support;
 	u32 *bit_clk_list;
 	u32 bit_clk_list_len;
-	bool skip_phy_timing_update;
 };
 
 struct dsi_pinctrl_info {
