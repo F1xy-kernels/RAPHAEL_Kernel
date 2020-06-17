@@ -1,2 +1,6 @@
 - Merged latest ALS.
-- Updated LOSFOD implementation to the latest version.
+- A few improvements to idling mechanisms.
+- Optimized spinlocks.
+- Updated touchscreen firmware.
+- Optimized some frequent memory allocations.
+- Added a short CPU boost when a cold app launch happens.
