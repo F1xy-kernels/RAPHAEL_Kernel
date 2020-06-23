@@ -1,6 +1,2 @@
 - Merged latest ALS.
-- A few improvements to idling mechanisms.
-- Optimized spinlocks.
-- Updated touchscreen firmware.
-- Optimized some frequent memory allocations.
-- Added a short CPU boost when a cold app launch happens.
+- Stability improvements.
