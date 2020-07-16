@@ -301,6 +301,7 @@ int DWC_ETH_QOS_enable_ipa_offload(struct DWC_ETH_QOS_prv_data *pdata)
 			goto fail;
 		}
 	}
+	pdata->prv_ipa.ipa_offload_susp = false;
 
 	if (!pdata->prv_ipa.ipa_debugfs_exists) {
 		if (!DWC_ETH_QOS_ipa_create_debugfs(pdata)) {
@@ -684,15 +685,19 @@ static void ntn_ipa_notify_cb(void *priv, enum ipa_dp_evt_type evt,
 
 		/* Submit packet to network stack */
 		/* If its a ping packet submit it via rx_ni else use rx */
-		if (ip_hdr->protocol == IPPROTO_ICMP) {
-			stat = netif_rx_ni(skb);
-		} else if ((pdata->dev->stats.rx_packets %
-				IPA_ETH_RX_SOFTIRQ_THRESH) == 0){
-			stat = netif_rx_ni(skb);
+		/* If NAPI is enabled call receive_skb */
+		if(ipa_get_lan_rx_napi()){
+			stat = netif_receive_skb(skb);
 		} else {
-			stat = netif_rx(skb);
+			if (ip_hdr->protocol == IPPROTO_ICMP) {
+				stat = netif_rx_ni(skb);
+			} else if ((pdata->dev->stats.rx_packets %
+				IPA_ETH_RX_SOFTIRQ_THRESH) == 0){
+				stat = netif_rx_ni(skb);
+			} else {
+				stat = netif_rx(skb);
+			}
 		}
-
 		if(stat == NET_RX_DROP) {
 			pdata->dev->stats.rx_dropped++;
 		} else {

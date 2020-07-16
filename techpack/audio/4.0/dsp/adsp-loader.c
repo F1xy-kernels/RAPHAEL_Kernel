@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2012-2014, 2017-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, 2017-2020, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/init.h>
@@ -23,7 +23,6 @@
 #define SSR_RESET_CMD 1
 #define IMAGE_UNLOAD_CMD 0
 #define MAX_FW_IMAGES 4
-#define ADSP_FW_NAME_MAX_LENGTH 5
 
 static ssize_t adsp_boot_store(struct kobject *kobj,
 	struct kobj_attribute *attr,
@@ -325,14 +324,14 @@ static int adsp_loader_probe(struct platform_device *pdev)
 {
 	struct adsp_loader_private *priv = NULL;
 	struct nvmem_cell *cell;
-	ssize_t len;
+	size_t len;
 	u32 *buf;
 	const char **adsp_fw_name_array = NULL;
 	int adsp_fw_cnt;
 	u32* adsp_fw_bit_values = NULL;
 	int i;
 	int fw_name_size;
-	u32 adsp_var_idx;
+	u32 adsp_var_idx = 0;
 	int ret = 0;
 
 	ret = adsp_loader_init_sysfs(pdev);
@@ -354,7 +353,13 @@ static int adsp_loader_probe(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "%s: FAILED to read nvmem cell \n", __func__);
 		goto wqueue;
 	}
-	adsp_var_idx = (*buf);
+	if (len <= 0 || len > sizeof(u32)) {
+		dev_dbg(&pdev->dev, "%s: nvmem cell length out of range: %d\n",
+			__func__, len);
+		kfree(buf);
+		goto wqueue;
+	}
+	memcpy(&adsp_var_idx, buf, len);
 	kfree(buf);
 
 	/* Get count of fw images */

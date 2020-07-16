@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2020 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -730,7 +730,7 @@ static int msm_pcm_open(struct snd_pcm_substream *substream)
 	ret = snd_pcm_hw_constraint_integer(runtime,
 					    SNDRV_PCM_HW_PARAM_PERIODS);
 	if (ret < 0)
-		pr_debug("snd_pcm_hw_constraint_integer failed\n");
+		pr_info("snd_pcm_hw_constraint_integer failed\n");
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		ret = snd_pcm_hw_constraint_minmax(runtime,
@@ -1693,9 +1693,6 @@ static int msm_pcm_chmap_ctl_get(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 	}
 
-	memset(ucontrol->value.integer.value, 0,
-		sizeof(ucontrol->value.integer.value));
-
 	mutex_lock(&pdata->lock);
 	prtd = substream->runtime->private_data;
 
@@ -1931,7 +1928,7 @@ static int msm_pcm_path_latency_ctl_get(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 	}
 	if (!substream->runtime) {
-		pr_debug("%s substream runtime not found\n", __func__);
+		pr_err("%s substream runtime not found\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1942,7 +1939,7 @@ static int msm_pcm_path_latency_ctl_get(struct snd_kcontrol *kcontrol,
 		if (rc) {
 			pr_err("%s: get_path_delay failed, ret=%d\n",
 				__func__, rc);
-			mutex_lock(&pdata->lock);
+			mutex_unlock(&pdata->lock);
 			return -EINVAL;
 		}
 		ucontrol->value.integer.value[0] =

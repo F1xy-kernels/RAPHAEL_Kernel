@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -252,10 +252,8 @@ static int audio_open(struct inode *inode, struct file *file)
 	struct q6audio_aio *audio = NULL;
 	int rc = 0;
 
-#ifdef CONFIG_DEBUG_FS
 	/* 4 bytes represents decoder number, 1 byte for terminate string */
 	char name[sizeof "msm_ape_" + 5];
-#endif
 
 	audio = kzalloc(sizeof(struct q6audio_aio), GFP_KERNEL);
 	if (!audio)
@@ -317,16 +315,16 @@ static int audio_open(struct inode *inode, struct file *file)
 		goto fail;
 	}
 
-#ifdef CONFIG_DEBUG_FS
 	snprintf(name, sizeof(name), "msm_ape_%04x", audio->ac->session);
+#ifdef CONFIG_DEBUG_FS
 	audio->dentry = config_debugfs_create_file(name, (void *)audio);
 
 	if (IS_ERR_OR_NULL(audio->dentry))
 		pr_debug("debugfs_create_file failed\n");
+#endif
 	pr_debug("%s:apedec success mode[%d]session[%d]\n", __func__,
 						audio->feedback,
 						audio->ac->session);
-#endif
 	return rc;
 fail:
 	q6asm_audio_client_free(audio->ac);

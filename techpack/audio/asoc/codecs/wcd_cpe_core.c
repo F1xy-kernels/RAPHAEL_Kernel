@@ -3547,7 +3547,7 @@ static int wcd_cpe_lsm_lab_control(
 {
 	struct wcd_cpe_core *core = core_handle;
 	int ret = 0, pld_size = CPE_PARAM_SIZE_LSM_LAB_CONTROL;
-	struct cpe_lsm_control_lab cpe_lab_enable = {{0}};
+	struct cpe_lsm_control_lab cpe_lab_enable;
 	struct cpe_lsm_lab_enable *lab_enable = &cpe_lab_enable.lab_enable;
 	struct cpe_param_data *param_d = &lab_enable->param;
 	struct cpe_lsm_ids ids;
@@ -3606,7 +3606,6 @@ static int wcd_cpe_lsm_eob(
 	int ret = 0;
 	struct cmi_hdr lab_eob;
 
-	memset(&lab_eob, 0, sizeof(lab_eob));
 	if (fill_lsm_cmd_header_v0_inband(&lab_eob, session->id,
 		0, CPE_LSM_SESSION_CMD_EOB)) {
 		return -EINVAL;

@@ -26,7 +26,7 @@
 
 MODULE_LICENSE("GPL v2");
 
-unsigned int temp_debug __read_mostly = 1;
+unsigned int temp_debug __read_mostly = 0;
 module_param(temp_debug, uint, 0644);
 MODULE_PARM_DESC(temp_debug, "temp_debug");
 
@@ -373,7 +373,8 @@ rmnet_perf_dereg_callbacks(struct net_device *dev,
 
 static bool rmnet_perf_config_hook_registered(void)
 {
-	int (*deag_entry)(struct sk_buff *skb);
+	void (*deag_entry)(struct sk_buff *skb,
+			   struct rmnet_port *port);
 	void (*frag_entry)(struct rmnet_frag_descriptor *frag_desc,
 			   struct rmnet_port *port);
 
@@ -397,7 +398,9 @@ static int rmnet_perf_config_notify_cb(struct notifier_block *nb,
 
 	switch (event) {
 	case NETDEV_UNREGISTER:
-		if (rmnet_is_real_dev_registered(dev) &&
+		pr_debug("%s(): rmnet_perf netdevice unregister, name = %s\n",
+			__func__, dev->name);
+		if (perf && rmnet_is_real_dev_registered(dev) &&
 		    rmnet_perf_config_hook_registered() &&
 		    (!strncmp(dev->name, "rmnet_ipa0", 10) ||
 		     !strncmp(dev->name, "rmnet_mhi0", 10))) {
@@ -413,15 +416,16 @@ static int rmnet_perf_config_notify_cb(struct notifier_block *nb,
 			RCU_INIT_POINTER(rmnet_perf_deag_entry, NULL);
 			RCU_INIT_POINTER(rmnet_perf_desc_entry, NULL);
 			RCU_INIT_POINTER(rmnet_perf_chain_end, NULL);
+			perf = NULL;
 		}
 		break;
 	case NETDEV_REGISTER:
-		pr_info("%s(): rmnet_perf netdevice register, name = %s\n",
+		pr_debug("%s(): rmnet_perf netdevice register, name = %s\n",
 			__func__, dev->name);
 		/* Check prevents us from allocating resources for every
 		 * interface
 		 */
-		if (!rmnet_perf_config_hook_registered() &&
+		if (!perf && !rmnet_perf_config_hook_registered() &&
 		    strncmp(dev->name, "rmnet_data", 10) == 0) {
 			struct rmnet_priv *priv = netdev_priv(dev);
 

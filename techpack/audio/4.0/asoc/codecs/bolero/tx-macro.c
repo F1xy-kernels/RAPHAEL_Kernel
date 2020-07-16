@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -40,12 +40,15 @@
 #define TX_MACRO_MCLK_FREQ 9600000
 #define TX_MACRO_TX_PATH_OFFSET 0x80
 #define TX_MACRO_SWR_MIC_MUX_SEL_MASK 0xF
-#define TX_MACRO_ADC_MUX_CFG_OFFSET 0x2
+#define TX_MACRO_ADC_MUX_CFG_OFFSET 0x8
 #define TX_MACRO_ADC_MODE_CFG0_SHIFT 1
 
-#define TX_MACRO_TX_UNMUTE_DELAY_MS	40
+#define TX_MACRO_DMIC_UNMUTE_DELAY_MS	40
+#define TX_MACRO_AMIC_UNMUTE_DELAY_MS	100
+#define TX_MACRO_DMIC_HPF_DELAY_MS	300
+#define TX_MACRO_AMIC_HPF_DELAY_MS	300
 
-static int tx_unmute_delay = TX_MACRO_TX_UNMUTE_DELAY_MS;
+static int tx_unmute_delay = TX_MACRO_DMIC_UNMUTE_DELAY_MS;
 module_param(tx_unmute_delay, int, 0664);
 MODULE_PARM_DESC(tx_unmute_delay, "delay to unmute the tx path");
 
@@ -155,10 +158,6 @@ struct tx_macro_priv {
 	struct work_struct tx_macro_add_child_devices_work;
 	struct hpf_work tx_hpf_work[NUM_DECIMATORS];
 	struct tx_mute_work tx_mute_dwork[NUM_DECIMATORS];
-	s32 dmic_0_1_clk_cnt;
-	s32 dmic_2_3_clk_cnt;
-	s32 dmic_4_5_clk_cnt;
-	s32 dmic_6_7_clk_cnt;
 	u16 dmic_clk_div;
 	u32 version;
 	u32 is_used_tx_swr_gpio;
@@ -222,19 +221,19 @@ static int tx_macro_mclk_enable(struct tx_macro_priv *tx_priv,
 
 	mutex_lock(&tx_priv->mclk_lock);
 	if (mclk_enable) {
+		ret = bolero_clk_rsc_request_clock(tx_priv->dev,
+						TX_CORE_CLK,
+						TX_CORE_CLK,
+						true);
+		if (ret < 0) {
+			dev_err_ratelimited(tx_priv->dev,
+				"%s: request clock enable failed\n",
+				__func__);
+			goto exit;
+		}
+		bolero_clk_rsc_fs_gen_request(tx_priv->dev,
+					true);
 		if (tx_priv->tx_mclk_users == 0) {
-			ret = bolero_clk_rsc_request_clock(tx_priv->dev,
-							   TX_CORE_CLK,
-							   TX_CORE_CLK,
-							   true);
-			if (ret < 0) {
-				dev_err_ratelimited(tx_priv->dev,
-					"%s: request clock enable failed\n",
-					__func__);
-				goto exit;
-			}
-			bolero_clk_rsc_fs_gen_request(tx_priv->dev,
-						  true);
 			regcache_mark_dirty(regmap);
 			regcache_sync_region(regmap,
 					TX_START_OFFSET,
@@ -265,18 +264,30 @@ static int tx_macro_mclk_enable(struct tx_macro_priv *tx_priv,
 			regmap_update_bits(regmap,
 				BOLERO_CDC_TX_CLK_RST_CTRL_MCLK_CONTROL,
 				0x01, 0x00);
-			bolero_clk_rsc_fs_gen_request(tx_priv->dev,
-						  false);
-
-			bolero_clk_rsc_request_clock(tx_priv->dev,
-						 TX_CORE_CLK,
-						 TX_CORE_CLK,
-						 false);
 		}
+
+		bolero_clk_rsc_fs_gen_request(tx_priv->dev,
+				false);
+		bolero_clk_rsc_request_clock(tx_priv->dev,
+				 TX_CORE_CLK,
+				 TX_CORE_CLK,
+				 false);
 	}
 exit:
 	mutex_unlock(&tx_priv->mclk_lock);
 	return ret;
+}
+
+static int __tx_macro_mclk_enable(struct snd_soc_codec *codec,
+				  bool enable)
+{
+	struct device *tx_dev = NULL;
+	struct tx_macro_priv *tx_priv = NULL;
+
+	if (!tx_macro_get_data(codec, &tx_dev, &tx_priv, __func__))
+		return -EINVAL;
+
+	return tx_macro_mclk_enable(tx_priv, enable);
 }
 
 static int tx_macro_va_swr_clk_event(struct snd_soc_dapm_widget *w,
@@ -361,10 +372,8 @@ static int tx_macro_event_handler(struct snd_soc_codec *codec, u16 event,
 
 	switch (event) {
 	case BOLERO_MACRO_EVT_SSR_DOWN:
+		trace_printk("%s, enter SSR down\n", __func__);
 		if (tx_priv->swr_ctrl_data) {
-			swrm_wcd_notify(
-				tx_priv->swr_ctrl_data[0].tx_swr_pdev,
-				SWR_DEVICE_DOWN, NULL);
 			swrm_wcd_notify(
 				tx_priv->swr_ctrl_data[0].tx_swr_pdev,
 				SWR_DEVICE_SSR_DOWN, NULL);
@@ -380,6 +389,7 @@ static int tx_macro_event_handler(struct snd_soc_codec *codec, u16 event,
 		}
 		break;
 	case BOLERO_MACRO_EVT_SSR_UP:
+		trace_printk("%s, enter SSR up\n", __func__);
 		/* reset swr after ssr/pdr */
 		tx_priv->reset_swr = true;
 		if (tx_priv->swr_ctrl_data)
@@ -422,6 +432,32 @@ static int tx_macro_reg_wake_irq(struct snd_soc_codec *codec,
 	return ret;
 }
 
+static int is_amic_enabled(struct snd_soc_codec *codec, int decimator)
+{
+	u16 adc_mux_reg = 0, adc_reg = 0;
+	u16 adc_n = BOLERO_ADC_MAX;
+	bool ret = false;
+	struct device *tx_dev = NULL;
+	struct tx_macro_priv *tx_priv = NULL;
+
+	if (!tx_macro_get_data(codec, &tx_dev, &tx_priv, __func__))
+		return ret;
+	adc_mux_reg = BOLERO_CDC_TX_INP_MUX_ADC_MUX0_CFG1 +
+			TX_MACRO_ADC_MUX_CFG_OFFSET * decimator;
+	if (snd_soc_read(codec, adc_mux_reg) & SWR_MIC) {
+		if (tx_priv->version == BOLERO_VERSION_2_1)
+			return true;
+		adc_reg = BOLERO_CDC_TX_INP_MUX_ADC_MUX0_CFG0 +
+			TX_MACRO_ADC_MUX_CFG_OFFSET * decimator;
+		adc_n = snd_soc_read(codec, adc_reg) &
+				TX_MACRO_SWR_MIC_MUX_SEL_MASK;
+		if (adc_n < BOLERO_ADC_MAX)
+			return true;
+	}
+
+	return ret;
+}
+
 static void tx_macro_tx_hpf_corner_freq_callback(struct work_struct *work)
 {
 	struct delayed_work *hpf_delayed_work = NULL;
@@ -430,7 +466,7 @@ static void tx_macro_tx_hpf_corner_freq_callback(struct work_struct *work)
 	struct snd_soc_codec *codec = NULL;
 	u16 dec_cfg_reg = 0, hpf_gate_reg = 0;
 	u8 hpf_cut_off_freq = 0;
-	u16 adc_mux_reg = 0, adc_n = 0, adc_reg = 0;
+	u16 adc_reg = 0, adc_n = 0;
 
 	hpf_delayed_work = to_delayed_work(work);
 	hpf_work = container_of(hpf_delayed_work, struct hpf_work, dwork);
@@ -446,25 +482,31 @@ static void tx_macro_tx_hpf_corner_freq_callback(struct work_struct *work)
 	dev_dbg(codec->dev, "%s: decimator %u hpf_cut_of_freq 0x%x\n",
 		__func__, hpf_work->decimator, hpf_cut_off_freq);
 
-	adc_mux_reg = BOLERO_CDC_TX_INP_MUX_ADC_MUX0_CFG1 +
-			TX_MACRO_ADC_MUX_CFG_OFFSET * hpf_work->decimator;
-	if (snd_soc_read(codec, adc_mux_reg) & SWR_MIC) {
+	if (is_amic_enabled(codec, hpf_work->decimator)) {
 		adc_reg = BOLERO_CDC_TX_INP_MUX_ADC_MUX0_CFG0 +
 			TX_MACRO_ADC_MUX_CFG_OFFSET * hpf_work->decimator;
 		adc_n = snd_soc_read(codec, adc_reg) &
 				TX_MACRO_SWR_MIC_MUX_SEL_MASK;
-		if (adc_n >= BOLERO_ADC_MAX)
-			goto tx_hpf_set;
 		/* analog mic clear TX hold */
 		bolero_clear_amic_tx_hold(codec->dev, adc_n);
+		snd_soc_update_bits(codec,
+				dec_cfg_reg, TX_HPF_CUT_OFF_FREQ_MASK,
+				hpf_cut_off_freq << 5);
+		snd_soc_update_bits(codec, hpf_gate_reg,
+						0x03, 0x02);
+		snd_soc_update_bits(codec, hpf_gate_reg,
+						0x03, 0x01);
+	} else {
+		snd_soc_update_bits(codec,
+				dec_cfg_reg, TX_HPF_CUT_OFF_FREQ_MASK,
+				hpf_cut_off_freq << 5);
+		snd_soc_update_bits(codec, hpf_gate_reg,
+						0x02, 0x02);
+		/* Minimum 1 clk cycle delay is required as per HW spec */
+		usleep_range(1000, 1010);
+		snd_soc_update_bits(codec, hpf_gate_reg,
+						0x02, 0x00);
 	}
-tx_hpf_set:
-	snd_soc_update_bits(codec, dec_cfg_reg, TX_HPF_CUT_OFF_FREQ_MASK,
-			    hpf_cut_off_freq << 5);
-	snd_soc_update_bits(codec, hpf_gate_reg, 0x03, 0x02);
-	/* Minimum 1 clk cycle delay is required as per HW spec */
-	usleep_range(1000, 1010);
-	snd_soc_update_bits(codec, hpf_gate_reg, 0x03, 0x01);
 }
 
 static void tx_macro_mute_update_callback(struct work_struct *work)
@@ -746,17 +788,9 @@ static int tx_macro_enable_dmic(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	u8  dmic_clk_en = 0x01;
-	u16 dmic_clk_reg = 0;
-	s32 *dmic_clk_cnt = NULL;
 	unsigned int dmic = 0;
 	int ret = 0;
 	char *wname = NULL;
-	struct device *tx_dev = NULL;
-	struct tx_macro_priv *tx_priv = NULL;
-
-	if (!tx_macro_get_data(codec, &tx_dev, &tx_priv, __func__))
-		return -EINVAL;
 
 	wname = strpbrk(w->name, "01234567");
 	if (!wname) {
@@ -771,53 +805,15 @@ static int tx_macro_enable_dmic(struct snd_soc_dapm_widget *w,
 		return -EINVAL;
 	}
 
-	switch (dmic) {
-	case 0:
-	case 1:
-		dmic_clk_cnt = &(tx_priv->dmic_0_1_clk_cnt);
-		dmic_clk_reg = BOLERO_CDC_VA_TOP_CSR_DMIC0_CTL;
-		break;
-	case 2:
-	case 3:
-		dmic_clk_cnt = &(tx_priv->dmic_2_3_clk_cnt);
-		dmic_clk_reg = BOLERO_CDC_VA_TOP_CSR_DMIC1_CTL;
-		break;
-	case 4:
-	case 5:
-		dmic_clk_cnt = &(tx_priv->dmic_4_5_clk_cnt);
-		dmic_clk_reg = BOLERO_CDC_VA_TOP_CSR_DMIC2_CTL;
-		break;
-	case 6:
-	case 7:
-		dmic_clk_cnt = &(tx_priv->dmic_6_7_clk_cnt);
-		dmic_clk_reg = BOLERO_CDC_VA_TOP_CSR_DMIC3_CTL;
-		break;
-	default:
-		dev_err(codec->dev, "%s: Invalid DMIC Selection\n",
-			__func__);
-		return -EINVAL;
-	}
-	dev_dbg(codec->dev, "%s: event %d DMIC%d dmic_clk_cnt %d\n",
-			__func__, event,  dmic, *dmic_clk_cnt);
+	dev_dbg(codec->dev, "%s: event %d DMIC%d\n",
+			__func__, event,  dmic);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		(*dmic_clk_cnt)++;
-		if (*dmic_clk_cnt == 1) {
-			snd_soc_update_bits(codec, BOLERO_CDC_VA_TOP_CSR_DMIC_CFG,
-					0x80, 0x00);
-
-			snd_soc_update_bits(codec, dmic_clk_reg,
-					0x0E, tx_priv->dmic_clk_div << 0x1);
-			snd_soc_update_bits(codec, dmic_clk_reg,
-					dmic_clk_en, dmic_clk_en);
-		}
+		bolero_dmic_clk_enable(codec, dmic, DMIC_TX, true);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		(*dmic_clk_cnt)--;
-		if (*dmic_clk_cnt  == 0)
-			snd_soc_update_bits(codec, dmic_clk_reg,
-					dmic_clk_en, 0);
+		bolero_dmic_clk_enable(codec, dmic, DMIC_TX, false);
 		break;
 	}
 
@@ -834,8 +830,12 @@ static int tx_macro_enable_dec(struct snd_soc_dapm_widget *w,
 	u16 hpf_gate_reg = 0;
 	u16 tx_gain_ctl_reg = 0;
 	u8 hpf_cut_off_freq = 0;
+	int hpf_delay = TX_MACRO_DMIC_HPF_DELAY_MS;
+	int unmute_delay = TX_MACRO_DMIC_UNMUTE_DELAY_MS;
 	struct device *tx_dev = NULL;
 	struct tx_macro_priv *tx_priv = NULL;
+	u16 adc_mux_reg = 0, adc_reg = 0, adc_n = 0;
+	u16 dmic_clk_reg = 0;
 
 	if (!tx_macro_get_data(codec, &tx_dev, &tx_priv, __func__))
 		return -EINVAL;
@@ -856,6 +856,22 @@ static int tx_macro_enable_dec(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
+		adc_mux_reg = BOLERO_CDC_TX_INP_MUX_ADC_MUX0_CFG1 +
+				TX_MACRO_ADC_MUX_CFG_OFFSET * decimator;
+		if (snd_soc_read(codec, adc_mux_reg) & SWR_MIC) {
+			adc_reg = BOLERO_CDC_TX_INP_MUX_ADC_MUX0_CFG0 +
+					TX_MACRO_ADC_MUX_CFG_OFFSET * decimator;
+			adc_n = snd_soc_read(codec, adc_reg) &
+					TX_MACRO_SWR_MIC_MUX_SEL_MASK;
+			if (adc_n >= BOLERO_ADC_MAX) {
+				dmic_clk_reg =
+					BOLERO_CDC_TX_TOP_CSR_SWR_DMIC0_CTL +
+					((adc_n - 5) / 2) * 4;
+				snd_soc_update_bits(codec,
+					dmic_clk_reg,
+					0x0E, tx_priv->dmic_clk_div << 0x1);
+			}
+		}
 		snd_soc_update_bits(codec,
 			dec_cfg_reg, 0x06, tx_priv->dec_mode[decimator] <<
 			TX_MACRO_ADC_MODE_CFG0_SHIFT);
@@ -864,8 +880,14 @@ static int tx_macro_enable_dec(struct snd_soc_dapm_widget *w,
 		break;
 	case SND_SOC_DAPM_POST_PMU:
 		snd_soc_update_bits(codec, tx_vol_ctl_reg, 0x20, 0x20);
-		snd_soc_update_bits(codec, hpf_gate_reg, 0x01, 0x00);
-
+		if (!(is_amic_enabled(codec, decimator) < BOLERO_ADC_MAX)) {
+			snd_soc_update_bits(codec,
+				hpf_gate_reg, 0x01, 0x00);
+			/*
+			 * Minimum 1 clk cycle delay is required as per HW spec
+			 */
+			usleep_range(1000, 1010);
+		}
 		hpf_cut_off_freq = (snd_soc_read(codec, dec_cfg_reg) &
 				   TX_HPF_CUT_OFF_FREQ_MASK) >> 5;
 		tx_priv->tx_hpf_work[decimator].hpf_cut_off_freq =
@@ -876,20 +898,32 @@ static int tx_macro_enable_dec(struct snd_soc_dapm_widget *w,
 					    TX_HPF_CUT_OFF_FREQ_MASK,
 					    CF_MIN_3DB_150HZ << 5);
 
+		if (is_amic_enabled(codec, decimator)) {
+			hpf_delay = TX_MACRO_AMIC_HPF_DELAY_MS;
+			unmute_delay = TX_MACRO_AMIC_UNMUTE_DELAY_MS;
+		}
+		if (tx_unmute_delay < unmute_delay)
+			tx_unmute_delay = unmute_delay;
 		/* schedule work queue to Remove Mute */
-		schedule_delayed_work(&tx_priv->tx_mute_dwork[decimator].dwork,
-				      msecs_to_jiffies(tx_unmute_delay));
+		queue_delayed_work(system_freezable_wq,
+				   &tx_priv->tx_mute_dwork[decimator].dwork,
+				   msecs_to_jiffies(tx_unmute_delay));
 		if (tx_priv->tx_hpf_work[decimator].hpf_cut_off_freq !=
 							CF_MIN_3DB_150HZ) {
 			schedule_delayed_work(
-					&tx_priv->tx_hpf_work[decimator].dwork,
-					msecs_to_jiffies(300));
-			snd_soc_update_bits(codec, hpf_gate_reg, 0x02, 0x02);
+				&tx_priv->tx_hpf_work[decimator].dwork,
+				msecs_to_jiffies(hpf_delay));
+			snd_soc_update_bits(codec,
+					hpf_gate_reg, 0x03, 0x02);
+			if (!is_amic_enabled(codec, decimator))
+				snd_soc_update_bits(codec,
+					hpf_gate_reg, 0x03, 0x00);
+			snd_soc_update_bits(codec,
+					hpf_gate_reg, 0x03, 0x01);
 			/*
-			 * Minimum 1 clk cycle delay is required as per HW spec
+			 * 6ms delay is required as per HW spec
 			 */
-			usleep_range(1000, 1010);
-			snd_soc_update_bits(codec, hpf_gate_reg, 0x02, 0x00);
+			usleep_range(6000, 6010);
 		}
 		/* apply gain after decimator is enabled */
 		snd_soc_write(codec, tx_gain_ctl_reg,
@@ -914,15 +948,22 @@ static int tx_macro_enable_dec(struct snd_soc_dapm_widget *w,
 				snd_soc_update_bits(codec, dec_cfg_reg,
 						    TX_HPF_CUT_OFF_FREQ_MASK,
 						    hpf_cut_off_freq << 5);
-				snd_soc_update_bits(codec, hpf_gate_reg,
-						0x02, 0x02);
+				if (is_amic_enabled(codec, decimator) <
+				    BOLERO_ADC_MAX)
+					snd_soc_update_bits(codec,
+							hpf_gate_reg,
+							0x03, 0x02);
+				else
+					snd_soc_update_bits(codec,
+							hpf_gate_reg,
+							0x03, 0x03);
 				/*
 				 * Minimum 1 clk cycle delay is required
 				 * as per HW spec
 				 */
 				usleep_range(1000, 1010);
 				snd_soc_update_bits(codec, hpf_gate_reg,
-						0x02, 0x00);
+						0x03, 0x01);
 			}
 		}
 		cancel_delayed_work_sync(
@@ -1500,6 +1541,10 @@ static const struct snd_soc_dapm_widget tx_macro_dapm_widgets_v3[] = {
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
 
+	SND_SOC_DAPM_SUPPLY_S("TX_SWR_CLK", 0, SND_SOC_NOPM, 0, 0,
+			tx_macro_tx_swr_clk_event,
+			SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+
 	SND_SOC_DAPM_SUPPLY_S("VA_SWR_CLK", 0, SND_SOC_NOPM, 0, 0,
 			tx_macro_va_swr_clk_event,
 			SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
@@ -1893,6 +1938,15 @@ static const struct snd_soc_dapm_route tx_audio_map_v3[] = {
 	{"TX SMIC MUX7", "SWR_MIC9", "TX SWR_MIC9"},
 	{"TX SMIC MUX7", "SWR_MIC10", "TX SWR_MIC10"},
 	{"TX SMIC MUX7", "SWR_MIC11", "TX SWR_MIC11"},
+
+	{"TX SMIC MUX0", NULL, "TX_SWR_CLK"},
+	{"TX SMIC MUX1", NULL, "TX_SWR_CLK"},
+	{"TX SMIC MUX2", NULL, "TX_SWR_CLK"},
+	{"TX SMIC MUX3", NULL, "TX_SWR_CLK"},
+	{"TX SMIC MUX4", NULL, "TX_SWR_CLK"},
+	{"TX SMIC MUX5", NULL, "TX_SWR_CLK"},
+	{"TX SMIC MUX6", NULL, "TX_SWR_CLK"},
+	{"TX SMIC MUX7", NULL, "TX_SWR_CLK"},
 };
 
 static const struct snd_soc_dapm_route tx_audio_map[] = {
@@ -2274,7 +2328,8 @@ static int tx_macro_register_event_listener(struct snd_soc_codec *codec,
 			"%s: priv is null for macro!\n", __func__);
 		return -EINVAL;
 	}
-	if (tx_priv->swr_ctrl_data) {
+	if (tx_priv->swr_ctrl_data &&
+		(!tx_priv->tx_swr_clk_cnt || !tx_priv->va_swr_clk_cnt)) {
 		if (enable) {
 			ret = swrm_wcd_notify(
 				tx_priv->swr_ctrl_data[0].tx_swr_pdev,
@@ -2299,6 +2354,9 @@ static int tx_macro_tx_va_mclk_enable(struct tx_macro_priv *tx_priv,
 {
 	int ret = 0, clk_tx_ret = 0;
 
+	trace_printk("%s: clock type %s, enable: %s tx_mclk_users: %d\n",
+		__func__, (clk_type ? "VA_MCLK" : "TX_MCLK"),
+		(enable ? "enable" : "disable"), tx_priv->tx_mclk_users);
 	dev_dbg(tx_priv->dev,
 		"%s: clock type %s, enable: %s tx_mclk_users: %d\n",
 		__func__, (clk_type ? "VA_MCLK" : "TX_MCLK"),
@@ -2306,6 +2364,7 @@ static int tx_macro_tx_va_mclk_enable(struct tx_macro_priv *tx_priv,
 
 	if (enable) {
 		if (tx_priv->swr_clk_users == 0) {
+			trace_printk("%s: tx swr clk users 0\n", __func__);
 			ret = msm_cdc_pinctrl_select_active_state(
 						tx_priv->tx_swr_gpio_p);
 			if (ret < 0) {
@@ -2321,6 +2380,7 @@ static int tx_macro_tx_va_mclk_enable(struct tx_macro_priv *tx_priv,
 						   TX_CORE_CLK,
 						   true);
 		if (clk_type == TX_MCLK) {
+			trace_printk("%s: requesting TX_MCLK\n", __func__);
 			ret = tx_macro_mclk_enable(tx_priv, 1);
 			if (ret < 0) {
 				if (tx_priv->swr_clk_users == 0)
@@ -2333,6 +2393,7 @@ static int tx_macro_tx_va_mclk_enable(struct tx_macro_priv *tx_priv,
 			}
 		}
 		if (clk_type == VA_MCLK) {
+			trace_printk("%s: requesting VA_MCLK\n", __func__);
 			ret = bolero_clk_rsc_request_clock(tx_priv->dev,
 							   TX_CORE_CLK,
 							   VA_CORE_CLK,
@@ -2353,15 +2414,18 @@ static int tx_macro_tx_va_mclk_enable(struct tx_macro_priv *tx_priv,
 					BOLERO_CDC_TX_TOP_CSR_FREQ_MCLK,
 					0x01, 0x01);
 				regmap_update_bits(regmap,
-				BOLERO_CDC_TX_CLK_RST_CTRL_MCLK_CONTROL,
+					BOLERO_CDC_TX_CLK_RST_CTRL_MCLK_CONTROL,
 					0x01, 0x01);
 				regmap_update_bits(regmap,
-			      BOLERO_CDC_TX_CLK_RST_CTRL_FS_CNT_CONTROL,
-					0x01, 0x01);
+				    BOLERO_CDC_TX_CLK_RST_CTRL_FS_CNT_CONTROL,
+				    0x01, 0x01);
 			}
+			tx_priv->tx_mclk_users++;
 		}
 		if (tx_priv->swr_clk_users == 0) {
 			dev_dbg(tx_priv->dev, "%s: reset_swr: %d\n",
+				__func__, tx_priv->reset_swr);
+			trace_printk("%s: reset_swr: %d\n",
 				__func__, tx_priv->reset_swr);
 			if (tx_priv->reset_swr)
 				regmap_update_bits(regmap,
@@ -2401,16 +2465,24 @@ static int tx_macro_tx_va_mclk_enable(struct tx_macro_priv *tx_priv,
 		if (clk_type == TX_MCLK)
 			tx_macro_mclk_enable(tx_priv, 0);
 		if (clk_type == VA_MCLK) {
+			if (tx_priv->tx_mclk_users <= 0) {
+				dev_err(tx_priv->dev, "%s: clock already disabled\n",
+						__func__);
+				tx_priv->tx_mclk_users = 0;
+				return 0;
+			}
+			tx_priv->tx_mclk_users--;
 			if (tx_priv->tx_mclk_users == 0) {
 				regmap_update_bits(regmap,
-			      BOLERO_CDC_TX_CLK_RST_CTRL_FS_CNT_CONTROL,
-					0x01, 0x00);
+				    BOLERO_CDC_TX_CLK_RST_CTRL_FS_CNT_CONTROL,
+				    0x01, 0x00);
 				regmap_update_bits(regmap,
-				BOLERO_CDC_TX_CLK_RST_CTRL_MCLK_CONTROL,
+					BOLERO_CDC_TX_CLK_RST_CTRL_MCLK_CONTROL,
 					0x01, 0x00);
 			}
+
 			bolero_clk_rsc_fs_gen_request(tx_priv->dev,
-						  false);
+						false);
 			ret = bolero_clk_rsc_request_clock(tx_priv->dev,
 							   TX_CORE_CLK,
 							   VA_CORE_CLK,
@@ -2447,10 +2519,22 @@ done:
 				TX_CORE_CLK,
 				false);
 exit:
+	trace_printk("%s: exit\n", __func__);
 	return ret;
 }
 
-static int tx_macro_clk_switch(struct snd_soc_codec *codec)
+static int tx_macro_clk_div_get(struct snd_soc_codec *codec)
+{
+	struct device *tx_dev = NULL;
+	struct tx_macro_priv *tx_priv = NULL;
+
+	if (!tx_macro_get_data(codec, &tx_dev, &tx_priv, __func__))
+		return -EINVAL;
+
+	return tx_priv->dmic_clk_div;
+}
+
+static int tx_macro_clk_switch(struct snd_soc_codec *codec, int clk_src)
 {
 	struct device *tx_dev = NULL;
 	struct tx_macro_priv *tx_priv = NULL;
@@ -2474,7 +2558,7 @@ static int tx_macro_clk_switch(struct snd_soc_codec *codec)
 	if (tx_priv->swr_ctrl_data) {
 		ret = swrm_wcd_notify(
 			tx_priv->swr_ctrl_data[0].tx_swr_pdev,
-			SWR_REQ_CLK_SWITCH, NULL);
+			SWR_REQ_CLK_SWITCH, &clk_src);
 	}
 
 	return ret;
@@ -2512,6 +2596,10 @@ static int tx_macro_swrm_clock(void *handle, bool enable)
 	}
 
 	mutex_lock(&tx_priv->swr_clk_lock);
+	trace_printk("%s: swrm clock %s tx_swr_clk_cnt: %d va_swr_clk_cnt: %d\n",
+		__func__,
+		(enable ? "enable" : "disable"),
+		tx_priv->tx_swr_clk_cnt, tx_priv->va_swr_clk_cnt);
 	dev_dbg(tx_priv->dev,
 		"%s: swrm clock %s tx_swr_clk_cnt: %d va_swr_clk_cnt: %d\n",
 		__func__, (enable ? "enable" : "disable"),
@@ -2574,6 +2662,9 @@ static int tx_macro_swrm_clock(void *handle, bool enable)
 		}
 	}
 
+	trace_printk("%s: swrm clock users %d tx_clk_sts_cnt: %d va_clk_sts_cnt: %d\n",
+		__func__, tx_priv->swr_clk_users, tx_priv->tx_clk_status,
+                tx_priv->va_clk_status);
 	dev_dbg(tx_priv->dev,
 		"%s: swrm clock users %d tx_clk_sts_cnt: %d va_clk_sts_cnt: %d\n",
 		__func__, tx_priv->swr_clk_users, tx_priv->tx_clk_status,
@@ -2803,6 +2894,13 @@ static int tx_macro_init(struct snd_soc_codec *codec)
 				tx_macro_reg_init[i].mask,
 				tx_macro_reg_init[i].val);
 
+	if (tx_priv->version == BOLERO_VERSION_2_1)
+		snd_soc_update_bits(codec,
+			BOLERO_CDC_VA_TOP_CSR_SWR_CTRL, 0xF0, 0xA0);
+	else if (tx_priv->version == BOLERO_VERSION_2_0)
+		snd_soc_update_bits(codec,
+			BOLERO_CDC_TX_TOP_CSR_SWR_CTRL, 0xF0, 0xA0);
+
 	return 0;
 }
 
@@ -2961,8 +3059,10 @@ static void tx_macro_init_ops(struct macro_ops *ops,
 	ops->event_handler = tx_macro_event_handler;
 	ops->reg_wake_irq = tx_macro_reg_wake_irq;
 	ops->set_port_map = tx_macro_set_port_map;
+	ops->clk_div_get = tx_macro_clk_div_get;
 	ops->clk_switch = tx_macro_clk_switch;
 	ops->reg_evt_listener = tx_macro_register_event_listener;
+	ops->clk_enable = __tx_macro_mclk_enable;
 }
 
 static int tx_macro_probe(struct platform_device *pdev)
@@ -3110,6 +3210,10 @@ static const struct of_device_id tx_macro_dt_match[] = {
 };
 
 static const struct dev_pm_ops bolero_dev_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(
+		pm_runtime_force_suspend,
+		pm_runtime_force_resume
+	)
 	SET_RUNTIME_PM_OPS(
 		bolero_runtime_suspend,
 		bolero_runtime_resume,
