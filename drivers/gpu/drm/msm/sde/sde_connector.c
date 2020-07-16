@@ -770,6 +770,10 @@ int sde_connector_update_hbm(struct sde_connector *c_conn)
 				} else {
 					rc = dsi_display_write_panel(dsi_display, &dsi_display->panel->cur_mode->priv_info->cmd_sets[DSI_CMD_SET_DISP_HBM_FOD_ON]);
 				}
+
+				/* reset backlight level */
+				dsi_panel_set_backlight(dsi_display->panel, dsi_display->panel->last_bl_lvl);
+
 				dsi_display->panel->skip_dimmingon = STATE_DIM_BLOCK;
                                 dsi_display->panel->hbm_enabled = true;
 				dsi_display->panel->fod_dimlayer_hbm_enabled = true;
