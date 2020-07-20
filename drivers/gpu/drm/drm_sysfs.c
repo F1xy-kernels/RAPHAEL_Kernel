@@ -260,6 +260,17 @@ static ssize_t panel_info_show(struct device *device,
 	return written;
 }
 
+static ssize_t doze_brightness_show(struct device *device,
+			    struct device_attribute *attr,
+			   char *buf)
+{
+	struct drm_connector *connector = to_drm_connector(device);
+	struct drm_device *dev = connector->dev;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+			dev->doze_brightness);
+}
+
 void drm_bridge_disp_param_set(struct drm_bridge *bridge, int cmd);
 static ssize_t disp_param_store(struct device *device,
 			   struct device_attribute *attr,
@@ -291,72 +302,24 @@ static ssize_t disp_param_store(struct device *device,
 	return count;
 }
 
-int dsi_bridge_disp_set_doze_backlight(struct drm_connector *connector,
-			int doze_backlight);
-ssize_t dsi_bridge_disp_get_doze_backlight(struct drm_connector *connector,
-			char *buf);
-static ssize_t doze_brightness_show(struct device *device,
-			    struct device_attribute *attr,
-			   char *buf)
-{
-	int writen = 0;
-	struct drm_connector *connector = NULL;
-	struct drm_device *dev = NULL;
-
-	if (!device)
-		return writen;
-
-	connector = to_drm_connector(device);
-	if (!connector)
-		return writen;
-
-	dev = connector->dev;
-	if (!dev)
-		return writen;
-
-	return snprintf(buf, PAGE_SIZE, "%d\n",
-			dev->doze_brightness);
-}
-
-static ssize_t doze_backlight_store(struct device *device,
-			   struct device_attribute *attr,
-			   const char *buf, size_t count)
-{
-	struct drm_connector *connector = to_drm_connector(device);
-	int doze_backlight;
-	int ret;
-
-	ret = kstrtoint(buf, 0, &doze_backlight);
-	if (ret)
-		return ret;
-
-	ret = dsi_bridge_disp_set_doze_backlight(connector, doze_backlight);
-
-	return ret ? ret : count;
-}
-
-static ssize_t doze_backlight_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct drm_connector *connector = to_drm_connector(dev);
-	return dsi_bridge_disp_get_doze_backlight(connector, buf);
-}
-
 extern ssize_t mipi_reg_write(char *buf, size_t count);
 extern ssize_t mipi_reg_read(char *buf);
 
 static ssize_t mipi_reg_show(struct device *device,
-			  struct device_attribute *attr,
-			 char *buf)
+			    struct device_attribute *attr,
+			   char *buf)
 {
 	return mipi_reg_read(buf);
 }
 
 static ssize_t mipi_reg_store(struct device *device,
-			 struct device_attribute *attr,
-			 const char *buf, size_t count)
+			   struct device_attribute *attr,
+			   const char *buf, size_t count)
 {
-	return mipi_reg_write((char *)buf, count);
+	int rc = 0;
+
+	rc = mipi_reg_write((char *)buf, count);
+	return rc;
 }
 
 void drm_bridge_disp_count_set(struct drm_bridge *bridge, const char *buf);
@@ -412,126 +375,15 @@ static ssize_t disp_count_show(struct device *device,
 	return ret;
 }
 
-ssize_t drm_bridge_disp_param_get(struct drm_bridge *bridge, char *pbuf);
-static ssize_t disp_param_show(struct device *device,
-			   struct device_attribute *attr,
-			   char *buf)
-{
-	ssize_t ret = 0;
-	struct drm_connector *connector = NULL;
-	struct drm_encoder *encoder = NULL;
-	struct drm_bridge *bridge = NULL;
-
-	connector = to_drm_connector(device);
-	if (!connector)
-		return ret;
-
-	encoder = connector->encoder;
-	if (!encoder)
-		return ret;
-
-	bridge = encoder->bridge;
-	if (!bridge)
-		return ret;
-
-	ret = drm_bridge_disp_param_get(bridge, buf);
-
-	return ret;
-}
-
-extern bool get_fod_ui_status(struct drm_connector *connector);
-static ssize_t fod_ui_ready_show(struct device *device,
-			   struct device_attribute *attr,
-			   char *buf)
-{
-	struct drm_connector *connector = NULL;
-	bool fod_ui_ready = false;
-
-	connector = to_drm_connector(device);
-	if (!connector)
-		return 0;
-
-	fod_ui_ready = get_fod_ui_status(connector);
-	return snprintf(buf, PAGE_SIZE, "%d\n", fod_ui_ready);
-}
-
-ssize_t xm_fod_dim_layer_alpha_store(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf, size_t count);
-
-extern bool set_fod_dimlayer_status(struct drm_connector *connector, bool enable);
-static ssize_t dim_layer_enable_store(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf, size_t count)
-{
-	struct drm_connector *connector = NULL;
-	bool fod_dimlayer_status = true;
-	ssize_t ret = 0;
-
-	connector = to_drm_connector(dev);
-
-	if (!connector)
-		return ret;
-
-	ret = kstrtobool(buf, &fod_dimlayer_status);
-	ret = set_fod_dimlayer_status(connector, fod_dimlayer_status);
-
-	if (!set_fod_dimlayer_status(connector, fod_dimlayer_status))
-		return ret;
-
-	pr_info("set fod dimlayer %s", fod_dimlayer_status ? "true" : "false");
-	return count;
-}
-
-extern bool get_fod_dimlayer_status(struct drm_connector *connector);
-static ssize_t dim_layer_enable_show(struct device *device,
-				struct device_attribute *attr,
-				char *buf)
-{
-	struct drm_connector *connector = NULL;
-	bool fod_dimlayer_status = true;
-
-	connector = to_drm_connector(device);
-	if (!connector)
-		return 0;
-
-	fod_dimlayer_status = get_fod_dimlayer_status(connector);
-
-	return snprintf(buf, PAGE_SIZE, fod_dimlayer_status ? "enabled\n" : "disabled\n");
-}
-
-extern bool get_fod_dimlayer_hbm_enabled_status(struct drm_connector *connector);
-
-static ssize_t dimlayer_hbm_enabled_show(struct device *device,
-				struct device_attribute *attr,
-				char *buf)
-{
-	struct drm_connector *connector = NULL;
-	bool fod_dimlayer_hbm_enabled_status = false;
-
-	connector = to_drm_connector(device);
-	if (!connector)
-		return 0;
-
-	fod_dimlayer_hbm_enabled_status = get_fod_dimlayer_hbm_enabled_status(connector);
-
-	return snprintf(buf, PAGE_SIZE, "%d\n", fod_dimlayer_hbm_enabled_status);
-}
-
 static DEVICE_ATTR_RW(status);
 static DEVICE_ATTR_RO(enabled);
 static DEVICE_ATTR_RO(dpms);
 static DEVICE_ATTR_RO(modes);
 static DEVICE_ATTR_RO(panel_info);
-static DEVICE_ATTR_RW(disp_param);
+static DEVICE_ATTR_WO(disp_param);
 static DEVICE_ATTR_RO(doze_brightness);
-static DEVICE_ATTR_RW(doze_backlight);
 static DEVICE_ATTR_RW(mipi_reg);
 static DEVICE_ATTR_RW(disp_count);
-static DEVICE_ATTR_RW(dim_layer_enable);
-static DEVICE_ATTR(dim_alpha, S_IRUGO|S_IWUSR, NULL, xm_fod_dim_layer_alpha_store);
-static DEVICE_ATTR_RO(dimlayer_hbm_enabled);
-static DEVICE_ATTR_RO(fod_ui_ready);
 
 static struct attribute *connector_dev_attrs[] = {
 	&dev_attr_status.attr,
@@ -541,13 +393,8 @@ static struct attribute *connector_dev_attrs[] = {
 	&dev_attr_panel_info.attr,
 	&dev_attr_disp_param.attr,
 	&dev_attr_doze_brightness.attr,
-	&dev_attr_doze_backlight.attr,
 	&dev_attr_mipi_reg.attr,
 	&dev_attr_disp_count.attr,
-	&dev_attr_dim_layer_enable.attr,
-	&dev_attr_dimlayer_hbm_enabled.attr,
-	&dev_attr_dim_alpha.attr,
-	&dev_attr_fod_ui_ready.attr,
 	NULL
 };
 
