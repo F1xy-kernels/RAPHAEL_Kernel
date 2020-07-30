@@ -1,4 +1,6 @@
-- Merged latest ALS.
-- A different thermal solution relying on in-kernel driver (by Sultan Alsawaf with my optimizations).
-- Reduced minimal frequency of little cores to 1056 MHz and increased up_rate_limit_us, should increase battery life.
-- Fixed a FOD related memory corruption.
+- Merged 4.14.188.
+- Optimized thermal throttling.
+- Optimized LOSFOD implementation.
+- Optimized ION allocations.
+- Massively updated sound driver.
+- Fixed a bug when headset's button wouldn't resume playback after pausing and suspending system.
