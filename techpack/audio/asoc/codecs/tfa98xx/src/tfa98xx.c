@@ -2848,7 +2848,6 @@ enum Tfa98xx_Error tfa98xx_adsp_send_calib_values(void)
 
 	/* if the calibration value was sent to host DSP, we clear flag only (stereo case). */
 	if ((tfa98xx_device_count > 1) && (tfa98xx_device_count == bytes[0])) {
-		pr_info("The calibration value was sent to host DSP.\n");
 		bytes[0] = 0;
 		return Tfa98xx_Error_Ok;
 	}
@@ -2861,7 +2860,6 @@ enum Tfa98xx_Error tfa98xx_adsp_send_calib_values(void)
 		if (TFA_GET_BF(tfa, MTPEX) == 1) {
 			value = tfa_dev_mtp_get(tfa, TFA_MTP_RE25);
 			dsp_cal_value = (value * 65536) / 1000;
-			pr_info("Device 0x%x cal value is 0x%d\n", tfa98xx->i2c->addr, dsp_cal_value);
 
 			bytes[nr++] = (uint8_t)((dsp_cal_value >> 16) & 0xff);
 			bytes[nr++] = (uint8_t)((dsp_cal_value >> 8) & 0xff);
@@ -2874,7 +2872,6 @@ enum Tfa98xx_Error tfa98xx_adsp_send_calib_values(void)
 	if (tfa98xx_device_count == 1) {
 		memcpy(&bytes[7], &bytes[4], sizeof(char)*3);
 	}
-	pr_info("tfa98xx_device_count=%d  bytes[0]=%d\n", tfa98xx_device_count, bytes[0]);
 
 	/* we will send it to host DSP algorithm once calibraion value loaded from all device. */
 	if (tfa98xx_device_count == bytes[0]) {
@@ -2902,7 +2899,6 @@ static int tfa98xx_send_mute_cmd(void)
 {
 	uint8_t cmd[9] = {0x04, 0x81, 0x04,  0x00, 0x00, 0xff, 0x00, 0x00, 0xff};
 
-	pr_info("send mute command to host DSP.\n");
 	return send_tfa_cal_in_band(&cmd[0], sizeof(cmd));
 }
 #endif
