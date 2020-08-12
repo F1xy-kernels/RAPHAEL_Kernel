@@ -1,6 +1,6 @@
-- Merged 4.14.188.
-- Optimized thermal throttling.
-- Optimized LOSFOD implementation.
-- Optimized ION allocations.
-- Massively updated sound driver.
-- Fixed a bug when headset's button wouldn't resume playback after pausing and suspending system.
+- Merged 4.14.193.
+- Switched to LZ4 for Zram compression.
+- SELinux performance improvements.
+- General performance improvements.
+- Touchscreen processibg moved back to big cores.
+- Reduced memory usage a little bit.

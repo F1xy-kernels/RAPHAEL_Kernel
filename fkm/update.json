@@ -1,11 +1,11 @@
 {
   "kernel": {
     "name": "F1xy-raphael",
-    "version": "0.25",
-    "link": "https://github.com/F1xy-kernels/RAPHAEL_Kernel/releases/download/v0.25/F1xy-Raphael-v0.25-LOSFOD.zip",
+    "version": "0.26",
+    "link": "https://github.com/F1xy-kernels/RAPHAEL_Kernel/releases/download/v0.26/F1xy-Raphael-v0.26-LOSFOD.zip",
     "changelog_url": "https://raw.githubusercontent.com/F1xy-kernels/RAPHAEL_Kernel/Q-raphael/fkm/changelog",
-    "date": "2020-7-30",
-    "sha1": "0adf01cd0df24d93f19e2df1133225d6aa5e2ffa"
+    "date": "2020-8-13",
+    "sha1": "a5bd6e508c982280d7db11ad6e0428a4c0bc3bfa"
   },
   "support": {
     "link": "https://t.me/f1xy_kernel_raphael"
