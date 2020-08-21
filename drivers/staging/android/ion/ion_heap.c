@@ -309,14 +309,13 @@ static unsigned long ion_heap_shrink_scan(struct shrinker *shrinker,
 	return freed;
 }
 
-int ion_heap_init_shrinker(struct ion_heap *heap)
+void ion_heap_init_shrinker(struct ion_heap *heap)
 {
 	heap->shrinker.count_objects = ion_heap_shrink_count;
 	heap->shrinker.scan_objects = ion_heap_shrink_scan;
 	heap->shrinker.seeks = DEFAULT_SEEKS;
 	heap->shrinker.batch = 0;
-
-	return register_shrinker(&heap->shrinker);
+	register_shrinker(&heap->shrinker);
 }
 
 struct ion_heap *ion_heap_create(struct ion_platform_heap *heap_data)
