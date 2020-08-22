@@ -2225,6 +2225,7 @@ int rmnet_shs_wq_get_max_flows_per_cluster(u16 cpu)
 	u16 end_core = 4;
 	int max_flows = -1;
 	int cpu_flows;
+	int i;
 
 	if (cpu > MAX_CPUS) {
 		rmnet_shs_crit_err[RMNET_SHS_INVALID_CPU_ERR]++;
@@ -2237,8 +2238,8 @@ int rmnet_shs_wq_get_max_flows_per_cluster(u16 cpu)
 		end_core = MAX_CPUS;
 	}
 
-	for (start_core; start_core < end_core; start_core++) {
-		cpu_flows = rmnet_shs_wq_get_num_cpu_flows(start_core);
+	for (i = start_core; i < end_core; i++) {
+		cpu_flows = rmnet_shs_wq_get_num_cpu_flows(i);
 		if (cpu_flows > max_flows)
 			max_flows = cpu_flows;
 	}
