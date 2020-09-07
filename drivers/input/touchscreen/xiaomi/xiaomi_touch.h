@@ -36,18 +36,11 @@ enum MODE_CMD {
 
 enum  MODE_TYPE {
 	Touch_Game_Mode        = 0,
-	Touch_Active_MODE      = 1,
+	Touch_Tolerance        = 1,
 	Touch_UP_THRESHOLD     = 2,
-	Touch_Tolerance        = 3,
-	Touch_Wgh_Min          = 4,
-	Touch_Wgh_Max          = 5,
-	Touch_Wgh_Step         = 6,
-	Touch_Edge_Filter      = 7,
-	Touch_Panel_Orientation = 8,
-	Touch_Report_Rate      = 9,
-	Touch_Fod_Enable       = 10,
-	Touch_Aod_Enable       = 11,
-	Touch_Mode_NUM         = 12,
+	Touch_Edge_Filter      = 3,
+	Touch_Panel_Orientation = 4,
+	Touch_Mode_NUM         = 5,
 };
 
 struct xiaomi_touch_interface {
