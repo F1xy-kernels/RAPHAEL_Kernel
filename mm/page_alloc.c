@@ -4247,6 +4247,7 @@ retry:
 	cpu_input_boost_kick_max(250);
 	devfreq_boost_kick_max(DEVFREQ_MSM_LLCCBW, 250);
 	devfreq_boost_kick_max(DEVFREQ_MSM_CPUBW, 250);
+	pr_info_ratelimited("%s: boosting\n", __func__);
 
 	/* Try direct reclaim and then allocating */
 	page = __alloc_pages_direct_reclaim(gfp_mask, order, alloc_flags, ac,
