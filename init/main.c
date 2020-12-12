@@ -543,6 +543,7 @@ asmlinkage __visible void __init start_kernel(void)
 {
 	char *command_line;
 	char *after_dashes;
+	const int max_print_length = 900;
 
 	set_task_stack_end_magic(&init_task);
 	smp_setup_processor_id();
@@ -578,7 +579,22 @@ asmlinkage __visible void __init start_kernel(void)
 	build_all_zonelists(NULL);
 	page_alloc_init();
 
-	pr_notice("Kernel command line: %s\n", boot_command_line);
+	if (strlen(boot_command_line) > max_print_length) {
+		char buf[max_print_length + 2];
+		int len;
+		/* Copy first 902 bytes of cmdline */
+		snprintf(buf, max_print_length, "%s", boot_command_line);
+		/* Calc how many long the last truncated argument is */
+		len = strlen(strrchr(buf, ' '));
+		/* Copy first buf minus truncated and print */
+		snprintf(buf, max_print_length - len, "%s", boot_command_line);
+		pr_notice("Kernel command line pt1: %s\n", buf);
+		/* Copy the rest and print (+1 to remove the space from strrchr) */
+		snprintf(buf, max_print_length, "%s", boot_command_line + strlen(buf) + 1);
+		pr_notice("pt2: %s\n", buf);
+	} else
+		pr_notice("Kernel command line: %s\n", boot_command_line);
+
 	/* parameters may set static keys */
 	jump_label_init();
 	parse_early_param();
