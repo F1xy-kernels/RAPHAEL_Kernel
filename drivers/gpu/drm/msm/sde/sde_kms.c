@@ -2860,11 +2860,11 @@ retry:
 	crtc_state->active = true;
 	ret = drm_atomic_set_crtc_for_connector(conn_state, enc->crtc);
 	if (ret)
-		goto end;
+		pr_err("drm_atomic_set_crtc_for_connector failed!\n");
 
 	ret = drm_atomic_commit(state);
-	if (ret != -EDEADLK)
-		goto end;
+	if (ret)
+		pr_err("drm_atomic_commit failed!\n");
 
 end:
 	if (state)
