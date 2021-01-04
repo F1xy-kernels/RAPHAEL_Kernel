@@ -69,7 +69,17 @@ ifdef CONFIG_LTO_CP_CLONE
 	LTO_CFLAGS += -fipa-cp-clone
 endif
 
-	KBUILD_CFLAGS += ${LTO_CFLAGS}
+	# Disable some spammy but harmless warnings
+	LTO_LD_WARNINGS += -Wno-lto-type-mismatch -Wno-psabi \
+				 -Wno-stringop-overflow -flinker-output=nolto-rel
+
+	LTO_FINAL_CFLAGS += ${LTO_LD_WARNINGS}
+
+	# Disable some more spammy but harmless warnings
+	LTO_CFLAGS_WARNINGS := $(call cc-disable-warning,attribute-alias,) \
+				 $(call cc-disable-warning, stringop-overflow)
+
+	KBUILD_CFLAGS += ${LTO_CFLAGS} ${LTO_CFLAGS_WARNINGS}
 
 	LDFINAL := ${CONFIG_SHELL} ${srctree}/scripts/gcc-ld \
                   ${LTO_FINAL_CFLAGS}
