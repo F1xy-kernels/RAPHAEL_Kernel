@@ -2,13 +2,15 @@
 # Support for gcc link time optimization
 #
 
+ifndef CONFIG_LTO_CLANG
 DISABLE_LTO :=
 LTO_CFLAGS :=
 
 export DISABLE_LTO
 export LTO_CFLAGS
+endif
 
-ifdef CONFIG_LTO
+ifdef CONFIG_LTO_MENU
 ifdef CONFIG_UBSAN
 ifeq ($(call cc-ifversion,-lt,0600,y),y)
         # work around compiler asserts due to UBSAN
@@ -18,7 +20,7 @@ endif
 endif
 endif
 
-ifdef CONFIG_LTO
+ifdef CONFIG_LTO_MENU
 # 4.7 works mostly, but it sometimes loses symbols on large builds
 # This can be worked around by marking those symbols visible,
 # but that is fairly ugly and the problem is gone with 4.8
