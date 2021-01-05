@@ -125,11 +125,7 @@ modpost_link()
 		info LD vmlinux.o
 	fi
 
-	if [ -z "${CONFIG_LTO_CLANG}" ]; then
-		${LD} ${LDFLAGS} -r -o ${1} $(lto_lds) ${objects}
-	else
-		${LDFINAL} ${LDFLAGS} -r -o ${1} $(modversions) ${objects}
-	fi
+	${LDFINAL} ${LDFLAGS} -r -o ${1} $(lto_lds) ${objects}
 }
 
 # If CONFIG_LTO_CLANG is selected, we postpone running recordmcount until
