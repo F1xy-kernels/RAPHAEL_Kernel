@@ -21,7 +21,7 @@ ccflags-y := -fno-stack-protector
 ccflags-y += -DDISABLE_BRANCH_PROFILING -ffixed-x18
 ccflags-y += $(call cc-option, -fno-whole-program)
 
-ifneq ($(CONFIG_LTO_CLANG),)
+ifeq ($(CONFIG_LTO_CLANG),)
 ccflags-y	+= $(DISABLE_LTO)
 KBUILD_CFLAGS	+= $(DISABLE_LTO)
 endif
