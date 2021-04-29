@@ -1,0 +1,13 @@
+{
+  "kernel": {
+    "name": "F1xy-raphael",
+    "version": "1.00",
+    "link": "https://github.com/F1xy-kernels/RAPHAEL_Kernel/releases/download/v1.00/F1xy-Raph-OSS-v1.00.zip",
+    "changelog_url": "https://raw.githubusercontent.com/F1xy-kernels/RAPHAEL_Kernel/R-raphael/fkm/changelog",
+    "date": "2021-4-29",
+    "sha1": "ab9c4efb8a65acd2d2b0898756dfb3bab39fae0b"
+  },
+  "support": {
+    "link": "https://t.me/f1xy_kernel_raphael"
+  }
+}

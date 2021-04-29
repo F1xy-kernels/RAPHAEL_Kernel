@@ -1,0 +1,7 @@
+Rebased over latest Utsav's kernel. For OSS vendor and Android 11 only.
+- Optimized memory management.
+- Optimized locking.
+- Optimized scheduler.
+- Enabled embedded dtbo.
+- Compiled using ProtonClang 13 and LTO.
+- I can't be bothered writing this, go read commit list on Github.
