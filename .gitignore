@@ -132,6 +132,7 @@ kernel/configs/android-*.cfg
 Android.bp
 
 # Personal
-/build
-/out
+/build/
+/out/
+/net/wireguard/
 build.sh
